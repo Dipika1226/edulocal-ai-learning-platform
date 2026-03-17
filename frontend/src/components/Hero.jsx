@@ -1,3 +1,6 @@
+import { Link as ScrollLink } from "react-scroll";
+import { Link as RouterLink } from "react-router-dom";
+
 export default function Hero() {
   return (
     <section className="relative h-screen w-full">
@@ -28,13 +31,24 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex gap-4">
-            <button className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-md text-sm font-medium transition shadow-md">
+            {/* Get Started */}
+            <RouterLink
+              to="/signup"
+              className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-md text-sm font-medium transition shadow-md"
+            >
               Get Started
-            </button>
+            </RouterLink>
 
-            <button className="border border-white/70 hover:bg-white hover:text-purple-700 px-6 py-3 rounded-md text-sm font-medium transition">
+            {/* How It Works */}
+            <ScrollLink
+              to="how-it-works"
+              smooth
+              duration={500}
+              offset={-80}
+              className="cursor-pointer border border-white/70 hover:bg-white hover:text-purple-700 px-6 py-3 rounded-md text-sm font-medium transition"
+            >
               How It Works
-            </button>
+            </ScrollLink>
           </div>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function Community() {
   return (
     <section
@@ -40,9 +42,12 @@ export default function Community() {
                 </p>
               </div>
 
-              <button className="px-6 py-3 rounded-full bg-purple-600 hover:bg-purple-500 transition font-medium">
+              <Link
+                to="/signup"
+                className="px-6 py-3 rounded-full bg-purple-600 hover:bg-purple-500 transition font-medium"
+              >
                 Join Community
-              </button>
+              </Link>
             </div>
           </div>
         </div>
