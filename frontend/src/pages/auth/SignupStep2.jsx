@@ -5,7 +5,7 @@ export default function SignupStep2() {
 
   const handleCreateAccount = (e) => {
     e.preventDefault();
-    alert("Account Created Successfully ✅");
+    alert("Account Created Successfully ");
     navigate("/login");
   };
 
