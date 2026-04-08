@@ -1,10 +1,21 @@
-import { Link } from "react-router-dom";
 import { Eye } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Signup() {
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("Form submitted");
+
+    // 👉 Move to Step 2
+    navigate("/signup-step2");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+
         {/* Logo */}
         <div className="text-center mb-4">
           <h1 className="text-2xl font-bold text-purple-600">EduLocal</h1>
@@ -29,8 +40,8 @@ export default function Signup() {
           </span>
         </div>
 
-        {/* Form */}
-        <form className="mt-8 space-y-4">
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <h3 className="text-sm font-semibold text-gray-800">
             Basic Information
           </h3>
@@ -71,7 +82,11 @@ export default function Signup() {
             />
           </div>
 
-          <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition mt-4">
+          {/* BUTTON */}
+          <button
+            type="submit"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition mt-4"
+          >
             Continue →
           </button>
         </form>

@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
 
 export default function Signup() {
+  const handleSubmit = (e) => {
+  e.preventDefault();
+  console.log("Form submitted");
+};
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50 flex flex-col items-center justify-center px-4">
       {/* Logo */}
