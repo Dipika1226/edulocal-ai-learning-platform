@@ -1,7 +1,14 @@
-import { Link } from "react-router-dom";
 import { Eye } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const navigate = useNavigate();
+
+const handleLogin = (e) => {
+  e.preventDefault();
+  console.log("Login successful");
+  navigate("/dashboard");
+};
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
@@ -19,7 +26,7 @@ export default function Login() {
         </p>
 
         {/* Form */}
-        <form className="mt-8 space-y-5">
+        <form onSubmit={handleLogin} className="mt-8 space-y-5">
           {/* Email */}
           <div>
             <label className="text-sm font-medium text-gray-700">
@@ -62,7 +69,7 @@ export default function Login() {
           </div>
 
           {/* Button */}
-          <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition">
+          <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition">
             Sign In
           </button>
         </form>
