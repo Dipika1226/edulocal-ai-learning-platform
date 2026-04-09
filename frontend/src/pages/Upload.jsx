@@ -42,6 +42,9 @@ export default function Upload() {
 
   setVideoLink("");
   setVideoFile(null);
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
 };
     //  valid
     if (videoLink) {
@@ -51,9 +54,6 @@ export default function Upload() {
     if (videoFile) {
       console.log("Uploading File:", videoFile);
     }
-
-    alert("Upload Successful");
-  };
 
   return (
     <div className="w-full bg-gray-100 flex items-center justify-center">
@@ -142,4 +142,5 @@ export default function Upload() {
 
       </div>
     </div>
-  );
+  )
+};

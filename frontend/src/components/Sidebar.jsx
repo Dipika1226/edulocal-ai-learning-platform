@@ -33,8 +33,12 @@ const navItems = [
     label: "Upload Video",
     to: "/dashboard/upload",
     icon: CirclePlus,
-    active: true,
   },
+{
+  label: "History",
+  to: "/dashboard/history",
+  icon: BookOpen,
+}
 ];
 
 export default function Sidebar() {
