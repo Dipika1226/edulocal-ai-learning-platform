@@ -7,19 +7,43 @@ export default function Upload() {
   const [videoFile, setVideoFile] = useState(null);
 
   const handleUpload = () => {
-    // ❌ nothing selected
-    if (!videoLink && !videoFile) {
-      alert("Please choose one option: Link or File ❗");
-      return;
-    }
+  if (!videoLink && !videoFile) {
+    alert("Please choose one option ");
+    return;
+  }
 
-    // ❌ both selected
-    if (videoLink && videoFile) {
-      alert("Please upload via single option only ❗");
-      return;
-    }
+  if (videoLink && videoFile) {
+    alert("Upload via single option only ");
+    return;
+  }
 
-    // ✅ valid
+  let historyItem = {};
+
+  if (videoLink) {
+    historyItem = {
+      type: "link",
+      link: videoLink,
+      thumbnail: `https://img.youtube.com/vi/${videoLink.split("v=")[1]}/0.jpg`
+    };
+  }
+
+  if (videoFile) {
+    historyItem = {
+      type: "file",
+      name: videoFile.name,
+      url: URL.createObjectURL(videoFile)
+    };
+  }
+
+  const existing = JSON.parse(localStorage.getItem("videos")) || [];
+  existing.push(historyItem);
+
+  localStorage.setItem("videos", JSON.stringify(existing));
+
+  setVideoLink("");
+  setVideoFile(null);
+};
+    //  valid
     if (videoLink) {
       console.log("Uploading via Link:", videoLink);
     }
@@ -28,7 +52,7 @@ export default function Upload() {
       console.log("Uploading File:", videoFile);
     }
 
-    alert("Upload Successful ✅");
+    alert("Upload Successful");
   };
 
   return (
@@ -77,7 +101,7 @@ export default function Upload() {
             ref={fileInputRef}
             onChange={(e) => setVideoFile(e.target.files[0])}
             className="w-full border px-4 py-2 rounded-md"
-/>
+            />
 
           {videoFile && (
           <button
@@ -119,4 +143,3 @@ export default function Upload() {
       </div>
     </div>
   );
-}
