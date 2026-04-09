@@ -4,7 +4,7 @@ import Signup from "./pages/auth/Signup";
 import SignupStep2 from "./pages/auth/SignupStep2";
 import Landing from "./pages/Landing";
 // import Dashboard from "./pages/Dashboard";
-// import Upload from "./pages/Upload";
+import Upload from "./pages/Upload";
 
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
@@ -20,6 +20,7 @@ function App() {
       <Route path="/upload" element={<Upload />} /> */}
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardHome />} />
+        <Route path="upload" element={<Upload />} />
       </Route>
     </Routes>
   );

@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom";
 export default function DashboardHome() {
+  const navigate = useNavigate();
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-4">Welcome Back 👋</h2>

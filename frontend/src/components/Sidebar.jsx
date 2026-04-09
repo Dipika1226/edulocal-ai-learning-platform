@@ -2,9 +2,8 @@ import {
   BookOpen,
   CirclePlus,
   LayoutDashboard,
-  MessageSquareMore,
   NotebookPen,
-  Puzzle,
+  Puzzle
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -31,14 +30,10 @@ const navItems = [
     icon: NotebookPen,
   },
   {
-    label: "NGO Community",
-    to: "/dashboard",
-    icon: MessageSquareMore,
-  },
-  {
     label: "Upload Video",
-    to: "/upload",
+    to: "/dashboard/upload",
     icon: CirclePlus,
+    active: true,
   },
 ];
 
