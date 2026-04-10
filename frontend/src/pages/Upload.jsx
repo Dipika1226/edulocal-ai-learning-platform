@@ -1,59 +1,104 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+
   const [videoLink, setVideoLink] = useState("");
   const [videoFile, setVideoFile] = useState(null);
+  const [preview, setPreview] = useState(null);
 
-  const handleUpload = () => {
-  if (!videoLink && !videoFile) {
-    alert("Please choose one option ");
-    return;
-  }
+  const handleUpload = async () => {
+    if (!videoLink && !videoFile) {
+      alert("Please choose one option");
+      return;
+    }
 
-  if (videoLink && videoFile) {
-    alert("Upload via single option only ");
-    return;
-  }
 
-  let historyItem = {};
+    if (videoLink && videoFile) {
+      alert("Upload via single option only");
+      return;
+    }
 
-  if (videoLink) {
-    historyItem = {
-      type: "link",
-      link: videoLink,
-      thumbnail: `https://img.youtube.com/vi/${videoLink.split("v=")[1]}/0.jpg`
-    };
-  }
+    let previewData = null;
 
-  if (videoFile) {
-    historyItem = {
-      type: "file",
-      name: videoFile.name,
-      url: URL.createObjectURL(videoFile)
-    };
-  }
+    // 🔥 PREVIEW FIRST (IMPORTANT FIX)
+    if (videoFile) {
+      const localUrl = URL.createObjectURL(videoFile);
+      previewData = {
+        type: "file",
+        url: localUrl,
+      };
+      setPreview(previewData);
+    }
 
-  const existing = JSON.parse(localStorage.getItem("videos")) || [];
-  existing.push(historyItem);
-
-  localStorage.setItem("videos", JSON.stringify(existing));
-
-  setVideoLink("");
-  setVideoFile(null);
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-};
-    //  valid
     if (videoLink) {
-      console.log("Uploading via Link:", videoLink);
+      previewData = {
+        type: "link",
+        link: videoLink,
+      };
+      setPreview(previewData);
+    }
+    navigate("/dashboard/watch", {
+  state: {
+    video: previewData
+  }
+});
+    // 🔹 Save to history (temporary)
+    let historyItem = {};
+
+    if (videoLink) {
+      let videoId = "";
+
+      if (videoLink.includes("v=")) {
+        videoId = videoLink.split("v=")[1]?.split("&")[0];
+      } else if (videoLink.includes("youtu.be/")) {
+        videoId = videoLink.split("youtu.be/")[1]?.split("?")[0];
+      }
+
+      historyItem = {
+        type: "link",
+        link: videoLink,
+        thumbnail: videoId
+          ? `https://img.youtube.com/vi/${videoId}/0.jpg`
+          : "",
+      };
     }
 
     if (videoFile) {
-      console.log("Uploading File:", videoFile);
+      historyItem = {
+        type: "file",
+        name: videoFile.name,
+        url: previewData.url,
+      };
     }
+
+    // 🔹 Backend call (after preview)
+    const formData = new FormData();
+    if (videoLink) formData.append("link", videoLink);
+    if (videoFile) formData.append("video", videoFile);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/videos/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      console.log("Response:", data);
+    } catch (err) {
+      console.log("Backend error:", err);
+    }
+
+    // 🔹 Reset input (preview ko mat hatao)
+    setVideoLink("");
+    setVideoFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   return (
     <div className="w-full bg-gray-100 flex items-center justify-center">
@@ -80,12 +125,12 @@ export default function Upload() {
 
             {videoLink && (
               <button
-              onClick={() => setVideoLink("")}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
+                onClick={() => setVideoLink("")}
+                className="bg-red-500 text-white px-4 py-2 rounded-md"
               >
-              Delete
+                Delete
               </button>
-              )}
+            )}
           </div>
         </div>
 
@@ -97,26 +142,25 @@ export default function Upload() {
 
           <div className="flex gap-2 items-center">
             <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => setVideoFile(e.target.files[0])}
-            className="w-full border px-4 py-2 rounded-md"
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => setVideoFile(e.target.files[0])}
+              className="w-full border px-4 py-2 rounded-md"
             />
 
-          {videoFile && (
-          <button
-          onClick={() => {
-          setVideoFile(null);
-          fileInputRef.current.value = ""; 
-          }}
-          className="bg-red-500 text-white px-4 py-2 rounded-md text-sm"
-          >
-          Delete
-          </button>
-          )}
+            {videoFile && (
+              <button
+                onClick={() => {
+                  setVideoFile(null);
+                  fileInputRef.current.value = "";
+                }}
+                className="bg-red-500 text-white px-4 py-2 rounded-md"
+              >
+                Delete
+              </button>
+            )}
           </div>
 
-          {/* show file name */}
           {videoFile && (
             <p className="text-sm text-gray-500 mt-2">
               Selected: {videoFile.name}
@@ -132,15 +176,50 @@ export default function Upload() {
           Upload
         </button>
 
+        {/* 🔥 VIDEO PREVIEW */}
+        {preview && (
+          <div className="mt-6">
+            <h3 className="font-semibold mb-2">Now Playing 🎬</h3>
+
+            {preview.type === "file" ? (
+              <video
+                src={preview.url}
+                controls
+                className="w-full rounded-md"
+              />
+            ) : preview.link.includes("youtube.com") ||
+              preview.link.includes("youtu.be") ? (
+              <iframe
+                width="100%"
+                height="250"
+                src={
+                  preview.link.includes("v=")
+                    ? `https://www.youtube.com/embed/${preview.link.split("v=")[1]?.split("&")[0]}`
+                    : `https://www.youtube.com/embed/${preview.link.split("youtu.be/")[1]?.split("?")[0]}`
+                }
+                title="video"
+                allowFullScreen
+                className="rounded-md"
+              ></iframe>
+            ) : (
+              <video
+                src={preview.link}
+                controls
+                className="w-full rounded-md"
+              />
+            )}
+          </div>
+        )}
+
         {/* Back Button */}
         <button
           onClick={() => navigate("/dashboard")}
-          className="w-full bg-gray-300 py-2 rounded-md"
+          className="w-full bg-gray-300 py-2 rounded-md mt-4"
         >
           Back to Dashboard
         </button>
 
       </div>
     </div>
-  )
-};
+  );
+}

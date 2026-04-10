@@ -7,6 +7,7 @@ import DashboardHome from "./pages/dashboard/DashboardHome";
 import History from "./pages/History";
 import Landing from "./pages/Landing";
 import Upload from "./pages/Upload";
+import Watch from "./pages/Watch";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route index element={<DashboardHome />} />
         <Route path="upload" element={<Upload />} />
         <Route path="history" element={<History />} />
+        <Route path="watch" element={<Watch />} />
       </Route>
     </Routes>
   );
