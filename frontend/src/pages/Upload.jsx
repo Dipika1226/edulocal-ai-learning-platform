@@ -15,7 +15,6 @@ export default function Upload() {
       return;
     }
 
-
     if (videoLink && videoFile) {
       alert("Upload via single option only");
       return;
@@ -23,7 +22,7 @@ export default function Upload() {
 
     let previewData = null;
 
-    // 🔥 PREVIEW FIRST (IMPORTANT FIX)
+    // Preview first
     if (videoFile) {
       const localUrl = URL.createObjectURL(videoFile);
       previewData = {
@@ -40,70 +39,72 @@ export default function Upload() {
       };
       setPreview(previewData);
     }
-    navigate("/dashboard/watch", {
-  state: {
-    video: previewData
-  }
-});
-    // 🔹 Save to history (temporary)
-    let historyItem = {};
-
-    if (videoLink) {
-      let videoId = "";
-
-      if (videoLink.includes("v=")) {
-        videoId = videoLink.split("v=")[1]?.split("&")[0];
-      } else if (videoLink.includes("youtu.be/")) {
-        videoId = videoLink.split("youtu.be/")[1]?.split("?")[0];
-      }
-
-      historyItem = {
-        type: "link",
-        link: videoLink,
-        thumbnail: videoId
-          ? `https://img.youtube.com/vi/${videoId}/0.jpg`
-          : "",
-      };
-    }
-
-    if (videoFile) {
-      historyItem = {
-        type: "file",
-        name: videoFile.name,
-        url: previewData.url,
-      };
-    }
-
-    // 🔹 Backend call (after preview)
-    const formData = new FormData();
-    if (videoLink) formData.append("link", videoLink);
-    if (videoFile) formData.append("video", videoFile);
 
     try {
-      const res = await fetch("http://localhost:5000/api/videos/upload", {
-        method: "POST",
-        body: formData,
-      });
+      let res;
+      let data;
 
-      const data = await res.json();
-      console.log("Response:", data);
+      // FILE UPLOAD
+      if (videoFile) {
+        const formData = new FormData();
+        formData.append("video", videoFile);
+        formData.append("title", videoFile.name);
+        formData.append("description", "Uploaded video file");
+
+        res = await fetch("http://localhost:5000/api/videos/upload-file", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: formData,
+        });
+
+        data = await res.json();
+        console.log("File upload:", data);
+      }
+
+      // LINK UPLOAD
+      if (videoLink) {
+        res = await fetch("http://localhost:5000/api/videos/upload-link", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            title: "Uploaded link video",
+            description: "Video via link",
+            videoUrl: videoLink,
+          }),
+        });
+
+        data = await res.json();
+        console.log("Link upload:", data);
+      }
+
+      // Reset input fields
+      setVideoLink("");
+      setVideoFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      // Upload ke baad watch page kholo
+      navigate("/dashboard/watch", {
+        state: {
+          video: previewData,
+        },
+      });
     } catch (err) {
       console.log("Backend error:", err);
-    }
-
-    // 🔹 Reset input (preview ko mat hatao)
-    setVideoLink("");
-    setVideoFile(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      alert("Upload failed");
     }
   };
 
   return (
     <div className="w-full bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow w-full max-w-lg">
-
         <h2 className="text-2xl font-bold mb-6 text-center">
           Upload Video 🎥
         </h2>
@@ -125,6 +126,7 @@ export default function Upload() {
 
             {videoLink && (
               <button
+                type="button"
                 onClick={() => setVideoLink("")}
                 className="bg-red-500 text-white px-4 py-2 rounded-md"
               >
@@ -144,15 +146,18 @@ export default function Upload() {
             <input
               type="file"
               ref={fileInputRef}
-              onChange={(e) => setVideoFile(e.target.files[0])}
+              onChange={(e) => setVideoFile(e.target.files[0] || null)}
               className="w-full border px-4 py-2 rounded-md"
             />
 
             {videoFile && (
               <button
+                type="button"
                 onClick={() => {
                   setVideoFile(null);
-                  fileInputRef.current.value = "";
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                  }
                 }}
                 className="bg-red-500 text-white px-4 py-2 rounded-md"
               >
@@ -170,13 +175,14 @@ export default function Upload() {
 
         {/* Upload Button */}
         <button
+          type="button"
           onClick={handleUpload}
           className="w-full bg-purple-600 text-white py-2 rounded-md mb-3"
         >
           Upload
         </button>
 
-        {/* 🔥 VIDEO PREVIEW */}
+        {/* Preview */}
         {preview && (
           <div className="mt-6">
             <h3 className="font-semibold mb-2">Now Playing 🎬</h3>
@@ -194,8 +200,12 @@ export default function Upload() {
                 height="250"
                 src={
                   preview.link.includes("v=")
-                    ? `https://www.youtube.com/embed/${preview.link.split("v=")[1]?.split("&")[0]}`
-                    : `https://www.youtube.com/embed/${preview.link.split("youtu.be/")[1]?.split("?")[0]}`
+                    ? `https://www.youtube.com/embed/${preview.link
+                        .split("v=")[1]
+                        ?.split("&")[0]}`
+                    : `https://www.youtube.com/embed/${preview.link
+                        .split("youtu.be/")[1]
+                        ?.split("?")[0]}`
                 }
                 title="video"
                 allowFullScreen
@@ -213,12 +223,12 @@ export default function Upload() {
 
         {/* Back Button */}
         <button
+          type="button"
           onClick={() => navigate("/dashboard")}
           className="w-full bg-gray-300 py-2 rounded-md mt-4"
         >
           Back to Dashboard
         </button>
-
       </div>
     </div>
   );
