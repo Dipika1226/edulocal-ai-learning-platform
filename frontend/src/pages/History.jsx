@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function History() {
   const [videos, setVideos] = useState([]);
-
+  const navigate = useNavigate();
   useEffect(() => {
     fetchVideos();
   }, []);
@@ -80,7 +81,26 @@ export default function History() {
             const isLink = video.videoType === "link";
 
             return (
-              <div key={video._id || index} className="bg-white p-4 rounded-xl shadow">
+             <div
+  key={video._id || index}
+  onClick={() =>{
+    console.log("Card clicked", video);
+    navigate("/dashboard/watch", {
+      state: {
+        video: {
+          type: video.videoType === "file" ? "file" : "link",
+          url:
+            video.videoType === "file"
+              ? `http://localhost:5000${video.videoUrl}`
+              : video.videoUrl,
+          link: video.videoUrl,
+        },
+      },
+    })
+  }
+}
+  className="bg-white p-4 rounded-xl shadow cursor-pointer hover:shadow-lg transition"
+>
                 {isFile ? (
                   <video
                     src={`http://localhost:5000${video.videoUrl}`}

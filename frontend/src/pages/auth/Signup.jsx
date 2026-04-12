@@ -11,9 +11,8 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (e) => {
+  const handleContinue = (e) => {
     e.preventDefault();
 
     if (!fullName || !email || !password || !confirmPassword) {
@@ -26,47 +25,26 @@ export default function Signup() {
       return;
     }
 
-    try {
-      setLoading(true);
+    // Basic signup data temporarily save
+    sessionStorage.setItem(
+      "signupData",
+      JSON.stringify({
+        username: fullName,
+        email,
+        password,
+      })
+    );
 
-      const res = await fetch("http://localhost:5000/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: fullName,
-          email,
-          password,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Signup failed");
-        return;
-      }
-
-      alert("Account created successfully ✅");
-      navigate("/login");
-    } catch (err) {
-      console.error("Signup error:", err);
-      alert("Backend se connection nahi ho raha");
-    } finally {
-      setLoading(false);
-    }
+    navigate("/signup-step2");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        {/* Logo */}
         <div className="text-center mb-4">
           <h1 className="text-2xl font-bold text-purple-600">EduLocal</h1>
         </div>
 
-        {/* Heading */}
         <h2 className="text-2xl font-semibold text-gray-900 text-center">
           Create Your Account
         </h2>
@@ -74,7 +52,6 @@ export default function Signup() {
           Start your learning journey today
         </p>
 
-        {/* Step Indicator */}
         <div className="flex items-center justify-center gap-3 mt-6">
           <span className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-600 text-white text-sm font-medium">
             1
@@ -85,8 +62,7 @@ export default function Signup() {
           </span>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSignup} className="mt-8 space-y-4">
+        <form onSubmit={handleContinue} className="mt-8 space-y-4">
           <h3 className="text-sm font-semibold text-gray-800">
             Basic Information
           </h3>
@@ -132,9 +108,7 @@ export default function Signup() {
               className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500"
             />
             <div
-              onClick={() =>
-                setShowConfirmPassword(!showConfirmPassword)
-              }
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
             >
               {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -143,14 +117,12 @@ export default function Signup() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition disabled:opacity-60"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition"
           >
-            {loading ? "Creating Account..." : "Continue →"}
+            Continue →
           </button>
         </form>
 
-        {/* Footer */}
         <p className="text-sm text-gray-600 text-center mt-6">
           Already have an account?{" "}
           <Link to="/login" className="text-purple-600 font-medium">

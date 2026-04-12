@@ -7,13 +7,25 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     email: {
-    type: String,
-    required: true,
-    unique: true,
+      type: String,
+      required: true,
+      unique: true,
     },
     password: {
       type: String,
       required: true,
+    },
+    preferredLanguage: {
+      type: String,
+      default: "English",
+    },
+    resetOtp: {
+      type: String,
+      default: "",
+    },
+    resetOtpExpiry: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

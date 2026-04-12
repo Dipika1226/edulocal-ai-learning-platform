@@ -104,7 +104,7 @@ export default function Login() {
               <input type="checkbox" className="rounded" />
               Remember me
             </label>
-            <Link to="#" className="text-purple-600 hover:underline">
+            <Link to="/forgot-password" className="text-purple-600 hover:underline">
               Forgot password?
             </Link>
           </div>

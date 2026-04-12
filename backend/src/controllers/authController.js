@@ -65,3 +65,61 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+export const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetOtp = otp;
+    user.resetOtpExpiry = Date.now() + 10 * 60 * 1000; // 10 min
+    await user.save();
+
+    console.log("Password Reset OTP:", otp);
+
+    res.json({
+  message: "OTP generated successfully",
+  otp,
+});
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (
+      !user.resetOtp ||
+      user.resetOtp !== otp ||
+      !user.resetOtpExpiry ||
+      new Date(user.resetOtpExpiry) < new Date()
+    ) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    user.password = newPassword;
+    user.resetOtp = "";
+    user.resetOtpExpiry = null;
+    await user.save();
+
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

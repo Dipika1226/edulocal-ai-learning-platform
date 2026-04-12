@@ -7,11 +7,11 @@ export default function Topbar() {
   const profileMenuRef = useRef(null);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    setIsProfileOpen(false);
-    navigate("/login");
-  };
-
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  navigate("/login");
+}
   useEffect(() => {
     if (!isProfileOpen) {
       return undefined;

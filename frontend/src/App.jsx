@@ -1,5 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import DashboardLayout from "./components/DashboardLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import SignupStep2 from "./pages/auth/SignupStep2";
@@ -16,9 +18,16 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/signup-step2" element={<SignupStep2 />} />
-      {/* <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/upload" element={<Upload />} /> */}
-      <Route path="/dashboard" element={<DashboardLayout />}>
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<DashboardHome />} />
         <Route path="upload" element={<Upload />} />
         <Route path="history" element={<History />} />

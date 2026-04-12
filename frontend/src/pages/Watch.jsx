@@ -4,6 +4,10 @@ export default function Watch() {
   const location = useLocation();
   const video = location.state?.video;
 
+   if (!video) {
+    return <p>No video selected</p>;
+  }
+
   return (
     <div className="flex gap-6 p-6">
 
