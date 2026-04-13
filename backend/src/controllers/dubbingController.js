@@ -22,12 +22,30 @@ export const createDub = async (req, res) => {
       return res.status(400).json({ message: "Dub already exists for this language" });
     }
 
-    const dubbing = await Dubbing.create({
-      videoId,
-      userId: req.user.id,
-      dubLanguage,
-      processingStatus: "pending",
+   const dubbing = await Dubbing.create({
+  videoId,
+  userId: req.user.id,
+  dubLanguage,
+  processingStatus: "pending",
+});
+
+console.log("✅ Dubbing created:", dubbing._id);
+
+// 🔥 FORCE UPDATE after 5 sec
+setTimeout(async () => {
+  try {
+    console.log("⏳ Running dummy completion...");
+
+    await Dubbing.findByIdAndUpdate(dubbing._id, {
+      processingStatus: "completed",
+      dubbedVideoUrl: "/uploads/demo.mp4",
     });
+
+    console.log("✅ Dummy dubbing completed");
+  } catch (err) {
+    console.log("❌ Dummy update error:", err);
+  }
+}, 5000);
 
     res.status(201).json({
       message: "Dubbing request created successfully",

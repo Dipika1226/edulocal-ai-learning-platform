@@ -5,39 +5,12 @@ export default function Watch() {
   const location = useLocation();
   const navigate = useNavigate();
   const video = location.state?.video;
+
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const preferredLanguage = user?.preferredLanguage || "English";
 
   const [dubStatus, setDubStatus] = useState("not_created");
-useEffect(() => {
-  const fetchDubStatus = async () => {
-    if (!video?._id) return;
-
-    try {
-      const res = await fetch(
-        `http://localhost:5000/api/dubbings/${video._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-      console.log("Fetched dub:", data);
-
-      if (data.dubbing) {
-        setDubStatus(data.dubbing.processingStatus);
-      } else {
-        setDubStatus("not_created");
-      }
-    } catch (err) {
-      console.log("Fetch dub error:", err);
-    }
-  };
-
-  fetchDubStatus();
-}, [video]);
+  const [dubbedVideoUrl, setDubbedVideoUrl] = useState("");
 
   const getYoutubeEmbedLink = (link) => {
     if (!link) return "";
@@ -52,6 +25,43 @@ useEffect(() => {
 
     return link;
   };
+
+  useEffect(() => {
+    const fetchDubStatus = async () => {
+      if (!video?._id) return;
+
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/dubbings/${video._id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        console.log("Fetched dub:", data);
+
+        if (data.dubbing) {
+          setDubStatus(data.dubbing.processingStatus || "not_created");
+          setDubbedVideoUrl(data.dubbing.dubbedVideoUrl || "");
+        } else {
+          setDubStatus("not_created");
+          setDubbedVideoUrl("");
+        }
+      } catch (err) {
+        console.log("Fetch dub error:", err);
+      }
+    };
+
+    fetchDubStatus();
+    const interval = setInterval(fetchDubStatus, 3000);
+
+    return () => clearInterval(interval);
+  }, [video]);
 
   const handleCreateDub = async () => {
     if (!video?._id) {
@@ -85,8 +95,8 @@ useEffect(() => {
         return;
       }
 
-      alert("Dubbing request created successfully");
       setDubStatus("pending");
+      alert("Dubbing request created successfully");
     } catch (err) {
       console.log("Dub create error:", err);
       alert("Server error");
@@ -117,7 +127,11 @@ useEffect(() => {
       <div className="lg:col-span-2">
         <div className="bg-white rounded-xl shadow-sm p-4">
           {video.type === "file" ? (
-            <video src={video.url} controls className="w-full rounded-lg" />
+            <video
+              src={video.url}
+              controls
+              className="w-full rounded-lg"
+            />
           ) : (
             <iframe
               width="100%"
@@ -127,6 +141,20 @@ useEffect(() => {
               allowFullScreen
               className="rounded-lg"
             ></iframe>
+          )}
+
+          {dubStatus === "completed" && dubbedVideoUrl && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-green-600">
+                Dubbed Video
+              </h3>
+
+              <video
+                src={`http://localhost:5000${dubbedVideoUrl}`}
+                controls
+                className="w-full mt-2 rounded-md"
+              />
+            </div>
           )}
 
           <h2 className="text-xl font-bold text-gray-800 mt-4">
@@ -147,12 +175,14 @@ useEffect(() => {
               a dubbed version in your preferred language.
             </p>
 
-            <button
-              onClick={handleCreateDub}
-              className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-            >
-              Create Dub
-            </button>
+            {dubStatus === "not_created" && (
+              <button
+                onClick={handleCreateDub}
+                className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+              >
+                Create Dub
+              </button>
+            )}
           </div>
         </div>
       </div>
