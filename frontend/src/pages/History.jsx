@@ -85,22 +85,24 @@ export default function History() {
             return (
             <div
   key={video._id || index}
-  onClick={() =>{
-    console.log("Card clicked", video);
+  onClick={() => {
+    console.log("HISTORY CLICK VIDEO:", video);
+
     navigate("/dashboard/watch", {
       state: {
         video: {
-          type: video.videoType === "file" ? "file" : "link",
-          url:
-            video.videoType === "file"
-              ? `http://localhost:5000${video.videoUrl}`
-              : video.videoUrl,
+          _id: video._id,
+          type: isFile ? "file" : "link",
+          url: isFile
+            ? `http://localhost:5000${video.videoUrl}`
+            : video.videoUrl,
           link: video.videoUrl,
+          title: video.title,
+          description: video.description,
         },
       },
-    })
-  }
-}
+    });
+  }}
   className="bg-white p-4 rounded-xl shadow cursor-pointer hover:shadow-lg transition"
 >
                 {isFile ? (

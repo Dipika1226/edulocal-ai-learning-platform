@@ -6,6 +6,7 @@ export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const t = getText();
+
   const [videoLink, setVideoLink] = useState("");
   const [videoFile, setVideoFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -22,6 +23,7 @@ export default function Upload() {
     }
 
     let previewData = null;
+    let savedVideo = null;
 
     // Preview first
     if (videoFile) {
@@ -42,9 +44,6 @@ export default function Upload() {
     }
 
     try {
-      let res;
-      let data;
-
       // FILE UPLOAD
       if (videoFile) {
         const formData = new FormData();
@@ -52,7 +51,7 @@ export default function Upload() {
         formData.append("title", videoFile.name);
         formData.append("description", "Uploaded video file");
 
-        res = await fetch("http://localhost:5000/api/videos/upload-file", {
+        const res = await fetch("http://localhost:5000/api/videos/upload-file", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -60,13 +59,20 @@ export default function Upload() {
           body: formData,
         });
 
-        data = await res.json();
-        console.log("File upload:", data);
+        const data = await res.json();
+        console.log("File upload response:", data);
+
+        if (!res.ok) {
+          alert(data.message || "Upload failed");
+          return;
+        }
+
+        savedVideo = data.video;
       }
 
       // LINK UPLOAD
       if (videoLink) {
-        res = await fetch("http://localhost:5000/api/videos/upload-link", {
+        const res = await fetch("http://localhost:5000/api/videos/upload-link", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -79,8 +85,15 @@ export default function Upload() {
           }),
         });
 
-        data = await res.json();
-        console.log("Link upload:", data);
+        const data = await res.json();
+        console.log("Link upload response:", data);
+
+        if (!res.ok) {
+          alert(data.message || "Upload failed");
+          return;
+        }
+
+        savedVideo = data.video;
       }
 
       // Reset input fields
@@ -91,12 +104,26 @@ export default function Upload() {
         fileInputRef.current.value = "";
       }
 
-      // Upload ke baad watch page kholo
-      navigate("/dashboard/watch", {
-        state: {
-          video: previewData,
-        },
-      });
+      // Upload ke baad watch page kholo with REAL saved video
+      if (savedVideo) {
+        navigate("/dashboard/watch", {
+          state: {
+            video: {
+              _id: savedVideo._id,
+              type: savedVideo.videoType === "file" ? "file" : "link",
+              url:
+                savedVideo.videoType === "file"
+                  ? `http://localhost:5000${savedVideo.videoUrl}`
+                  : savedVideo.videoUrl,
+              link: savedVideo.videoUrl,
+              title: savedVideo.title,
+              description: savedVideo.description,
+            },
+          },
+        });
+      } else {
+        alert("Upload completed but video data not found");
+      }
     } catch (err) {
       console.log("Backend error:", err);
       alert("Upload failed");
@@ -107,7 +134,7 @@ export default function Upload() {
     <div className="w-full bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow w-full max-w-lg">
         <h2 className="text-2xl font-bold mb-6 text-center">
-           {t.uploadTitle}
+          {t.uploadTitle}
         </h2>
 
         {/* Link Upload */}
@@ -180,7 +207,7 @@ export default function Upload() {
           onClick={handleUpload}
           className="w-full bg-purple-600 text-white py-2 rounded-md mb-3"
         >
-         {t.uploadBtn}
+          {t.uploadBtn}
         </button>
 
         {/* Preview */}

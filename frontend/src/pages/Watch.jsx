@@ -1,55 +1,171 @@
-import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function Watch() {
   const location = useLocation();
+  const navigate = useNavigate();
   const video = location.state?.video;
+  const user = JSON.parse(localStorage.getItem("user")) || {};
+  const preferredLanguage = user?.preferredLanguage || "English";
 
-   if (!video) {
-    return <p>No video selected</p>;
+  const [dubStatus, setDubStatus] = useState("not_created");
+useEffect(() => {
+  const fetchDubStatus = async () => {
+    if (!video?._id) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/dubbings/${video._id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+      console.log("Fetched dub:", data);
+
+      if (data.dubbing) {
+        setDubStatus(data.dubbing.processingStatus);
+      } else {
+        setDubStatus("not_created");
+      }
+    } catch (err) {
+      console.log("Fetch dub error:", err);
+    }
+  };
+
+  fetchDubStatus();
+}, [video]);
+
+  const getYoutubeEmbedLink = (link) => {
+    if (!link) return "";
+
+    if (link.includes("v=")) {
+      return `https://www.youtube.com/embed/${link.split("v=")[1]?.split("&")[0]}`;
+    }
+
+    if (link.includes("youtu.be/")) {
+      return `https://www.youtube.com/embed/${link.split("youtu.be/")[1]?.split("?")[0]}`;
+    }
+
+    return link;
+  };
+
+  const handleCreateDub = async () => {
+    if (!video?._id) {
+      alert("Video ID not found.");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/dubbings/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          videoId: video._id,
+          dubLanguage: preferredLanguage,
+        }),
+      });
+
+      const data = await res.json();
+      console.log("Dub create response:", data);
+
+      if (!res.ok) {
+        if (data.message === "Dub already exists for this language") {
+          setDubStatus("pending");
+          return;
+        }
+
+        alert(data.message || "Failed to create dub");
+        return;
+      }
+
+      alert("Dubbing request created successfully");
+      setDubStatus("pending");
+    } catch (err) {
+      console.log("Dub create error:", err);
+      alert("Server error");
+    }
+  };
+
+  if (!video) {
+    return (
+      <div className="p-6">
+        <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+          <h2 className="text-xl font-semibold text-gray-800">Video not found</h2>
+          <p className="text-sm text-gray-500 mt-2">
+            Please open this video again from Upload or History.
+          </p>
+          <button
+            onClick={() => navigate("/dashboard/history")}
+            className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+          >
+            Go to History
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex gap-6 p-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2">
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          {video.type === "file" ? (
+            <video src={video.url} controls className="w-full rounded-lg" />
+          ) : (
+            <iframe
+              width="100%"
+              height="420"
+              src={getYoutubeEmbedLink(video.link)}
+              title="Video Player"
+              allowFullScreen
+              className="rounded-lg"
+            ></iframe>
+          )}
 
-      {/* LEFT: Video Player */}
-      <div className="flex-1">
-        {video?.type === "file" ? (
-          <video
-            src={video.url}
-            controls
-            className="w-full rounded-md"
-          />
-        ) : (
-          <iframe
-            width="100%"
-            height="400"
-            src={
-              video?.link.includes("v=")
-                ? `https://www.youtube.com/embed/${video.link.split("v=")[1]}`
-                : `https://www.youtube.com/embed/${video.link.split("youtu.be/")[1]}`
-            }
-            title="video"
-            allowFullScreen
-          ></iframe>
-        )}
-      </div>
+          <h2 className="text-xl font-bold text-gray-800 mt-4">
+            {video.title || "Original Video"}
+          </h2>
 
-      {/* RIGHT: Recommendations */}
-      <div className="w-80 space-y-4">
-        <h3 className="font-bold">Recommended</h3>
+          <p className="text-gray-500 text-sm mt-1">
+            Preferred Language:{" "}
+            <span className="font-medium text-violet-600">
+              {preferredLanguage}
+            </span>
+          </p>
 
-        {/* dummy cards */}
-        {[1,2,3,4].map((item) => (
-          <div key={item} className="bg-white p-2 rounded shadow">
-            <img
-              src="https://via.placeholder.com/150"
-              className="w-full rounded"
-            />
-            <p className="text-sm mt-2">Sample Video {item}</p>
+          <div className="mt-4 rounded-lg border border-violet-100 bg-violet-50 p-4">
+            <h3 className="font-semibold text-violet-700">Dubbing</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Original video will play in its original language. You can create
+              a dubbed version in your preferred language.
+            </p>
+
+            <button
+              onClick={handleCreateDub}
+              className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
+            >
+              Create Dub
+            </button>
           </div>
-        ))}
+        </div>
       </div>
 
+      <div className="bg-white rounded-xl shadow-sm p-4">
+        <h3 className="text-lg font-semibold text-gray-800">Dub Status</h3>
+        <p className="text-sm text-gray-500 mt-2">
+          {dubStatus === "not_created" && "No dubbed version created yet."}
+          {dubStatus === "pending" && "Dub Status: Pending"}
+          {dubStatus === "processing" && "Dub Status: Processing"}
+          {dubStatus === "completed" && "Dub Status: Completed"}
+        </p>
+      </div>
     </div>
   );
 }
