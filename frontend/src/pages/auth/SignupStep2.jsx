@@ -1,34 +1,38 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+
+const languageOptions = [
+  { code: "GB", value: "English", label: "English" },
+  { code: "IN", value: "Hindi", label: "हिंदी (Hindi)" },
+  { code: "IN", value: "Bengali", label: "বাংলা (Bengali)" },
+  { code: "IN", value: "Telugu", label: "తెలుగు (Telugu)" },
+  { code: "IN", value: "Marathi", label: "मराठी (Marathi)" },
+  { code: "IN", value: "Tamil", label: "தமிழ் (Tamil)" },
+  { code: "IN", value: "Gujarati", label: "ગુજરાતી (Gujarati)" },
+  { code: "IN", value: "Kannada", label: "ಕನ್ನಡ (Kannada)" },
+  { code: "IN", value: "Malayalam", label: "മലയാളം (Malayalam)" },
+  { code: "IN", value: "Punjabi", label: "ਪੰਜਾਬੀ (Punjabi)" },
+  { code: "IN", value: "Odia", label: "ଓଡ଼ିଆ (Odia)" },
+  { code: "IN", value: "Assamese", label: "অসমীয়া (Assamese)" },
+];
 
 export default function SignupStep2() {
   const navigate = useNavigate();
-
-  const [language, setLanguage] = useState("");
+  const [preferredLanguage, setPreferredLanguage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [signupData, setSignupData] = useState(null);
-
-  useEffect(() => {
-    const savedData = sessionStorage.getItem("signupData");
-
-    if (!savedData) {
-      navigate("/signup");
-      return;
-    }
-
-    setSignupData(JSON.parse(savedData));
-  }, [navigate]);
 
   const handleCreateAccount = async (e) => {
     e.preventDefault();
 
-    if (!language) {
-      alert("Please select preferred language");
+    if (!preferredLanguage) {
+      alert("Please select your preferred language");
       return;
     }
 
-    if (!signupData) {
-      alert("Signup data missing");
+    const draft = JSON.parse(localStorage.getItem("signupDraft") || "{}");
+
+    if (!draft.username || !draft.email || !draft.password) {
+      alert("Please complete step 1 first");
       navigate("/signup");
       return;
     }
@@ -36,82 +40,151 @@ export default function SignupStep2() {
     try {
       setLoading(true);
 
-      const res = await fetch("http://localhost:5000/api/auth/signup", {
+      const signupRes = await fetch("http://localhost:5000/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...signupData,
-          preferredLanguage: language,
-        }),
+        body: JSON.stringify(draft),
       });
 
-      const data = await res.json();
+      const signupData = await signupRes.json();
 
-      if (!res.ok) {
-        alert(data.message || "Signup failed");
+      if (!signupRes.ok) {
+        alert(signupData.message || "Signup failed");
         return;
       }
 
-      sessionStorage.removeItem("signupData");
+      const profileRes = await fetch(
+        "http://localhost:5000/api/auth/complete-profile",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${signupData.token}`,
+          },
+          body: JSON.stringify({
+            preferredLanguage,
+          }),
+        },
+      );
+
+      const profileData = await profileRes.json();
+
+      if (!profileRes.ok) {
+        alert(profileData.message || "Profile completion failed");
+        return;
+      }
+
+      localStorage.setItem("token", signupData.token);
+      localStorage.setItem("user", JSON.stringify(profileData.user));
+      localStorage.removeItem("signupDraft");
+
       alert("Account created successfully ✅");
-      navigate("/login");
-    } catch (err) {
-      console.log(err);
-      alert("Server error");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Signup step 2 error:", error);
+      alert("Unable to create account right now");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-4">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.10),transparent_32%),radial-gradient(circle_at_bottom,rgba(45,212,191,0.12),transparent_30%),linear-gradient(135deg,#fbf7ff_0%,#ffffff_52%,#f3fbfb_100%)] px-4 py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-md flex-col items-center justify-center">
+        <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-purple-600">EduLocal</h1>
         </div>
 
-        <h2 className="text-2xl font-semibold text-gray-900 text-center">
-          Complete Your Profile
-        </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
-          Choose your preferred language
+        <h1 className="text-center text-[30px] font-semibold leading-tight text-slate-900">
+          Create Your Account
+        </h1>
+        <p className="mt-2 text-center text-[13px] leading-5 text-slate-500">
+          Start your learning journey today
         </p>
 
-        <div className="flex items-center justify-center gap-3 mt-6">
-          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-green-500 text-white text-sm font-medium">
+        <div className="mb-8 mt-6 flex items-center gap-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-[13px] font-semibold text-white">
             1
-          </span>
-          <span className="w-12 h-[2px] bg-gray-300" />
-          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-600 text-white text-sm font-medium">
+          </div>
+          <div className="h-0.5 w-16 bg-purple-200" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-[13px] font-semibold text-white">
             2
-          </span>
+          </div>
         </div>
 
-        <form onSubmit={handleCreateAccount} className="mt-8 space-y-4">
-          <label className="block text-sm font-medium text-gray-700">
-            Select Preferred Language
-          </label>
+        <div className="w-full rounded-[28px] border border-white/80 bg-white/90 p-6 shadow-[0_22px_55px_rgba(148,163,184,0.18)] backdrop-blur sm:p-8">
+          <h2 className="text-[15px] font-semibold text-slate-800">
+            Choose Your Preferred Language
+          </h2>
+          <p className="mb-5 mt-2 text-[13px] leading-5 text-slate-500">
+            Select the language you're most comfortable learning in
+          </p>
 
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="">Select language</option>
-            <option value="Hindi">Hindi</option>
-            <option value="English">English</option>
-          </select>
+          <form onSubmit={handleCreateAccount}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {languageOptions.map((language) => {
+                const isSelected = preferredLanguage === language.value;
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition disabled:opacity-60"
-          >
-            {loading ? "Creating Account..." : "Create Account"}
-          </button>
-        </form>
+                return (
+                  <button
+                    key={language.value}
+                    type="button"
+                    onClick={() => setPreferredLanguage(language.value)}
+                    className={[
+                      "rounded-lg border px-3 py-3 text-left transition",
+                      isSelected
+                        ? "border-purple-600 bg-purple-50 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/40",
+                    ].join(" ")}
+                  >
+                    <span className="block text-[12px] font-semibold text-slate-900">
+                      {language.code}
+                    </span>
+                    <span className="mt-2 block text-[12px] leading-4 text-slate-700">
+                      {language.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => navigate("/signup")}
+                className="rounded-lg border border-purple-500 px-4 py-3 text-[14px] font-medium text-purple-600 transition hover:bg-purple-50"
+              >
+                ← Back
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-lg bg-linear-to-r from-fuchsia-600 to-violet-600 px-4 py-3 text-[14px] font-medium text-white transition hover:shadow-lg disabled:opacity-60"
+              >
+                {loading ? "Creating..." : "✓ Create Account"}
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-6 text-center text-[13px] text-slate-600">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-purple-600 hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
+
+        <Link
+          to="/"
+          className="mt-6 text-[13px] text-slate-500 hover:text-purple-600"
+        >
+          ← Back to home
+        </Link>
       </div>
     </div>
   );

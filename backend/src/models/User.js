@@ -15,17 +15,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    phoneNumber: {
+      type: String,
+      default: "",
+    },
+    address: {
+      type: String,
+      default: "",
+    },
     preferredLanguage: {
       type: String,
       default: "English",
     },
-    resetOtp: {
-      type: String,
-      default: "",
-    },
-    resetOtpExpiry: {
-      type: Date,
-      default: null,
+    profileCompleted: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

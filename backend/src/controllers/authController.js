@@ -18,13 +18,21 @@ export const signup = async (req, res) => {
       preferredLanguage,
     });
 
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
     res.status(201).json({
       message: "Account created successfully",
+      token,
       user: {
         id: user._id,
         username: user.username,
         email: user.email,
         preferredLanguage: user.preferredLanguage,
+        profileCompleted: user.profileCompleted,
       },
     });
   } catch (err) {
@@ -56,88 +64,51 @@ export const login = async (req, res) => {
     res.json({
       token,
       user: {
-      id: user._id,
-      username: user.username,
-      email: user.email,
-       preferredLanguage: user.preferredLanguage,
-    },
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        preferredLanguage: user.preferredLanguage || "English",
+        profileCompleted: user.profileCompleted,
+      },
     });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Server error" });
   }
 };
-export const requestPasswordReset = async (req, res) => {
-  try {
-    const { email } = req.body;
 
-    const user = await User.findOne({ email });
+export const completeProfile = async (req, res) => {
+  try {
+    const { phoneNumber, address, preferredLanguage } = req.body;
+
+    if (!preferredLanguage) {
+      return res.status(400).json({ message: "Preferred language is required" });
+    }
+
+    const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.phoneNumber = phoneNumber || user.phoneNumber || "";
+    user.address = address || user.address || "";
+    user.preferredLanguage = preferredLanguage;
+    user.profileCompleted = true;
 
-    user.resetOtp = otp;
-    user.resetOtpExpiry = Date.now() + 10 * 60 * 1000; // 10 min
     await user.save();
 
-    console.log("Password Reset OTP:", otp);
-
     res.json({
-  message: "OTP generated successfully",
-  otp,
-});
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const resetPassword = async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (
-      !user.resetOtp ||
-      user.resetOtp !== otp ||
-      !user.resetOtpExpiry ||
-      new Date(user.resetOtpExpiry) < new Date()
-    ) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
-    }
-
-    user.password = newPassword;
-    user.resetOtp = "";
-    user.resetOtpExpiry = null;
-    await user.save();
-
-    res.json({ message: "Password reset successfully" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-export const getMe = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      preferredLanguage: user.preferredLanguage,
+      message: "Profile completed successfully",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        address: user.address,
+        preferredLanguage: user.preferredLanguage,
+        profileCompleted: user.profileCompleted,
+      },
     });
   } catch (err) {
     console.log(err);
