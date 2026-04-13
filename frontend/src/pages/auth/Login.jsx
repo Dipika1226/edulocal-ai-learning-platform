@@ -40,8 +40,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4 pt-12 pb-8">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-start justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4 pt-10 pb-8 sm:pt-12">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 sm:p-8">
 
         {/* Logo */}
         <div className="text-center mb-6">
@@ -57,7 +57,7 @@ export default function Login() {
         </p>
 
         {/* Form */}
-        <form onSubmit={handleLogin} className="mt-8 space-y-5">
+        <form onSubmit={handleLogin} className="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
 
           {/* Email */}
           <div>
@@ -99,7 +99,7 @@ export default function Login() {
           </div>
 
           {/* Remember / Forgot */}
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-3">
             <label className="flex items-center gap-2 text-gray-600">
               <input type="checkbox" className="rounded" />
               Remember me
