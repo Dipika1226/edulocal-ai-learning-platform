@@ -102,7 +102,6 @@ export default function SignupStep2() {
             <option value="">Select language</option>
             <option value="Hindi">Hindi</option>
             <option value="English">English</option>
-            <option value="Marathi">Marathi</option>
           </select>
 
           <button

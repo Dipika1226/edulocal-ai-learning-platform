@@ -22,7 +22,8 @@ export default function Login() {
       });
 
       const data = await res.json();
-
+console.log("login response:", data);
+console.log("login user:", data.user);
       if (!res.ok) {
         alert(data.message);
         return;
@@ -30,8 +31,7 @@ export default function Login() {
 
       // 🔥 SAVE TOKEN
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
+      localStorage.setItem("user", JSON.stringify(data.user));;
       navigate("/dashboard");
 
     } catch (err) {

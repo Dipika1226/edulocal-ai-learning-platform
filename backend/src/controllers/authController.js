@@ -4,10 +4,9 @@ import User from "../models/User.js";
 // SIGNUP
 export const signup = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
-
+    const { username, email, password, preferredLanguage } = req.body;
+    console.log("signup body:", req.body);
     const existingUser = await User.findOne({ email });
-
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -16,6 +15,7 @@ export const signup = async (req, res) => {
       username,
       email,
       password,
+      preferredLanguage,
     });
 
     res.status(201).json({
@@ -24,6 +24,7 @@ export const signup = async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        preferredLanguage: user.preferredLanguage,
       },
     });
   } catch (err) {
@@ -41,7 +42,7 @@ export const login = async (req, res) => {
     console.log("Email:", email);
 
     const user = await User.findOne({ email });
-
+    console.log("login db user:", user);
     if (!user || user.password !== password) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -55,10 +56,11 @@ export const login = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
+      id: user._id,
+      username: user.username,
+      email: user.email,
+       preferredLanguage: user.preferredLanguage,
+    },
     });
   } catch (err) {
     console.log(err);
@@ -118,6 +120,25 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      preferredLanguage: user.preferredLanguage,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Server error" });

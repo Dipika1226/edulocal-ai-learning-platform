@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getText } from "../utils/translations";
 
 export default function History() {
   const [videos, setVideos] = useState([]);
   const navigate = useNavigate();
+  const t = getText();
   useEffect(() => {
     fetchVideos();
   }, []);
@@ -70,10 +72,10 @@ export default function History() {
 };
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Your Upload History 🎬</h2>
+      <h2 className="text-2xl font-bold mb-6">{t.historyTitle}</h2>
 
       {videos.length === 0 ? (
-        <p>No videos yet</p>
+        <p>{t.noVideos}</p>
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
           {videos.map((video, index) => {
@@ -81,7 +83,7 @@ export default function History() {
             const isLink = video.videoType === "link";
 
             return (
-             <div
+            <div
   key={video._id || index}
   onClick={() =>{
     console.log("Card clicked", video);
@@ -125,11 +127,11 @@ export default function History() {
                     />
                   )
                 ) : (
-                  <p className="text-sm text-red-500">Unsupported video type</p>
+                  <p className="text-sm text-red-500">{t.unsupportedVideo}</p>
                 )}
 
                 <h3 className="mt-3 font-semibold text-gray-800">
-                  {video.title || "Untitled Video"}
+                  {video.title || t.untitledVideo}
                 </h3>
 
                 {video.description && (
@@ -145,7 +147,7 @@ export default function History() {
   }}
   className="mt-3 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
 >
-  Delete
+  {t.deleteBtn}
 </button>
               </div>
             );

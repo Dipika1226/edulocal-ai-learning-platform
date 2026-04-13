@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getText } from "../utils/translations";
 
 export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-
+  const t = getText();
   const [videoLink, setVideoLink] = useState("");
   const [videoFile, setVideoFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -106,13 +107,13 @@ export default function Upload() {
     <div className="w-full bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow w-full max-w-lg">
         <h2 className="text-2xl font-bold mb-6 text-center">
-          Upload Video 🎥
+           {t.uploadTitle}
         </h2>
 
         {/* Link Upload */}
         <div className="mb-4">
           <label className="block mb-2 font-medium">
-            Upload via Link 🔗
+            {t.uploadViaLink}
           </label>
 
           <div className="flex gap-2">
@@ -139,7 +140,7 @@ export default function Upload() {
         {/* File Upload */}
         <div className="mb-6">
           <label className="block mb-2 font-medium">
-            Upload Video File 📁
+            {t.uploadVideoFile}
           </label>
 
           <div className="flex gap-2 items-center">
@@ -168,7 +169,7 @@ export default function Upload() {
 
           {videoFile && (
             <p className="text-sm text-gray-500 mt-2">
-              Selected: {videoFile.name}
+              {t.selectedFile}: {videoFile.name}
             </p>
           )}
         </div>
@@ -179,13 +180,13 @@ export default function Upload() {
           onClick={handleUpload}
           className="w-full bg-purple-600 text-white py-2 rounded-md mb-3"
         >
-          Upload
+         {t.uploadBtn}
         </button>
 
         {/* Preview */}
         {preview && (
           <div className="mt-6">
-            <h3 className="font-semibold mb-2">Now Playing 🎬</h3>
+            <h3 className="font-semibold mb-2">{t.previewTitle}</h3>
 
             {preview.type === "file" ? (
               <video
@@ -227,7 +228,7 @@ export default function Upload() {
           onClick={() => navigate("/dashboard")}
           className="w-full bg-gray-300 py-2 rounded-md mt-4"
         >
-          Back to Dashboard
+          {t.backToDashboard}
         </button>
       </div>
     </div>

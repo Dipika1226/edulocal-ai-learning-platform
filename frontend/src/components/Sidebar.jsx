@@ -1,47 +1,51 @@
 import {
   BookOpen,
   CirclePlus,
+  History,
   LayoutDashboard,
   NotebookPen,
-  Puzzle
+  Puzzle,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-
-const navItems = [
-  {
-    label: "Dashboard",
-    to: "/dashboard",
-    icon: LayoutDashboard,
-    active: true,
-  },
-  {
-    label: "Video Learning",
-    to: "/dashboard",
-    icon: BookOpen,
-  },
-  {
-    label: "Quizzes",
-    to: "/dashboard",
-    icon: Puzzle,
-  },
-  {
-    label: "My Notes",
-    to: "/dashboard",
-    icon: NotebookPen,
-  },
-  {
-    label: "Upload Video",
-    to: "/dashboard/upload",
-    icon: CirclePlus,
-  },
-{
-  label: "History",
-  to: "/dashboard/history",
-  icon: BookOpen,
-}
-];
+import { getText } from "../utils/translations";
 
 export default function Sidebar() {
+  const t = getText();
+
+  const navItems = [
+    {
+      label: t.dashboard,
+      to: "/dashboard",
+      icon: LayoutDashboard,
+      active: true,
+    },
+    {
+      label: t.videoLearning,
+      to: "/dashboard",
+      icon: BookOpen,
+    },
+    {
+      label: t.quizzes,
+      to: "/dashboard",
+      icon: Puzzle,
+    },
+    {
+      label: t.myNotes,
+      to: "/dashboard",
+      icon: NotebookPen,
+    },
+    {
+      label: t.uploadVideo,
+      to: "/dashboard/upload",
+      icon: CirclePlus,
+    },
+    {
+      label: t.history,
+      to: "/dashboard/history",
+      icon: History,
+    },
+  ];
+
   return (
     <aside className="flex min-h-[calc(100vh-73px)] w-48 shrink-0 flex-col border-r border-purple-100 bg-white">
       <nav className="flex flex-1 flex-col px-2 py-6">

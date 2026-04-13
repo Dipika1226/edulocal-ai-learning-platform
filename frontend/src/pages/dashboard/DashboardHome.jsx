@@ -1,29 +1,29 @@
 import { useNavigate } from "react-router-dom";
+import { getText } from "../../utils/translations";
+
 export default function DashboardHome() {
   const navigate = useNavigate();
+  const t = getText();
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Welcome Back 👋</h2>
-
-      <p className="text-gray-600 mb-8">
-        Continue learning in your preferred language.
-      </p>
+      <h1 className="text-4xl font-bold text-slate-900">{t.welcomeBack}</h1>
+      <p className="mt-3 text-base text-slate-600">{t.continueLearning}</p>
 
       {/* Stats */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="mt-8 grid md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h3 className="text-gray-500 text-sm">Courses Enrolled</h3>
+          <h3 className="text-gray-500 text-sm">{t.coursesEnrolled}</h3>
           <p className="text-3xl font-bold text-purple-700 mt-2">12</p>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h3 className="text-gray-500 text-sm">Completed Lessons</h3>
+          <h3 className="text-gray-500 text-sm">{t.completedLessons}</h3>
           <p className="text-3xl font-bold text-purple-700 mt-2">48</p>
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <h3 className="text-gray-500 text-sm">Certificates Earned</h3>
+          <h3 className="text-gray-500 text-sm">{t.certificatesEarned}</h3>
           <p className="text-3xl font-bold text-purple-700 mt-2">5</p>
         </div>
       </div>
