@@ -41,9 +41,9 @@ setTimeout(async () => {
       dubbedVideoUrl: "/uploads/demo.mp4",
     });
 
-    console.log("✅ Dummy dubbing completed");
+    console.log(" Dummy dubbing completed");
   } catch (err) {
-    console.log("❌ Dummy update error:", err);
+    console.log(" Dummy update error:", err);
   }
 }, 5000);
 
@@ -73,6 +73,36 @@ export const getUserDubForVideo = async (req, res) => {
     res.json({ dubbing });
   } catch (error) {
     console.log(" getUserDubForVideo error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const completeDubbing = async (req, res) => {
+  try {
+    const { videoId, translatedText, dubbedVideoUrl, dubbedAudioUrl } = req.body;
+
+    const dubbing = await Dubbing.findOne({
+      videoId,
+      userId: req.user.id,
+    });
+
+    if (!dubbing) {
+      return res.status(404).json({ message: "Dubbing not found" });
+    }
+
+    dubbing.translatedText = translatedText || dubbing.translatedText;
+    dubbing.dubbedVideoUrl = dubbedVideoUrl || dubbing.dubbedVideoUrl;
+    dubbing.dubbedAudioUrl = dubbedAudioUrl || dubbing.dubbedAudioUrl;
+    dubbing.processingStatus = "completed";
+
+    await dubbing.save();
+
+    res.json({
+      message: "Dubbing completed successfully",
+      dubbing,
+    });
+  } catch (err) {
+    console.log("completeDubbing error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

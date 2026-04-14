@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   NotebookPen,
   Puzzle,
+  Settings,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { getText } from "../utils/translations";
@@ -44,6 +45,11 @@ export default function Sidebar() {
       to: "/dashboard/history",
       icon: History,
     },
+    {
+      label: t.settings,
+      to: "/dashboard/settings",
+      icon: Settings,
+},
   ];
 
   return (

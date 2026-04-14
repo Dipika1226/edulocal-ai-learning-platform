@@ -129,11 +129,16 @@ export default function Topbar() {
               </div>
 
               <div className="p-2">
-                <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded">
-                  <Settings size={16} />
-                  Settings
-                </button>
-
+                <button
+  onClick={() => {
+    setIsProfileOpen(false);
+    navigate("/dashboard/settings");
+  }}
+  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+>
+  <Settings size={16} />
+  Settings
+</button>
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 text-red-600 rounded"

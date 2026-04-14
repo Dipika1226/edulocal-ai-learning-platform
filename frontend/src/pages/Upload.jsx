@@ -49,7 +49,7 @@ export default function Upload() {
         const formData = new FormData();
         formData.append("video", videoFile);
         formData.append("title", videoFile.name);
-        formData.append("description", "Uploaded video file");
+        formData.append("description", "t.uploadedVideoFile");
 
         const res = await fetch("http://localhost:5000/api/videos/upload-file", {
           method: "POST",
@@ -79,8 +79,8 @@ export default function Upload() {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({
-            title: "Uploaded link video",
-            description: "Video via link",
+            title: t.uploadedLinkVideo,
+            description: t.videoViaLink,
             videoUrl: videoLink,
           }),
         });

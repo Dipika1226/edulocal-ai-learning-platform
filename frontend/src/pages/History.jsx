@@ -4,11 +4,56 @@ import { getText } from "../utils/translations";
 
 export default function History() {
   const [videos, setVideos] = useState([]);
+  const [dubStatuses, setDubStatuses] = useState({});
   const navigate = useNavigate();
   const t = getText();
+
   useEffect(() => {
     fetchVideos();
   }, []);
+
+  const fetchDubStatuses = async (videoList) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const results = await Promise.all(
+        videoList.map(async (video) => {
+          try {
+            const res = await fetch(
+              `http://localhost:5000/api/dubbings/${video._id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            const data = await res.json();
+
+            return {
+              videoId: video._id,
+              status: data.dubbing ? data.dubbing.processingStatus : "not_created",
+            };
+          } catch (err) {
+            console.log("Dub status fetch error:", err);
+            return {
+              videoId: video._id,
+              status: "not_created",
+            };
+          }
+        })
+      );
+
+      const statusMap = {};
+      results.forEach((item) => {
+        statusMap[item.videoId] = item.status;
+      });
+
+      setDubStatuses(statusMap);
+    } catch (err) {
+      console.log("Dub status fetch failed:", err);
+    }
+  };
 
   const fetchVideos = async () => {
     try {
@@ -23,14 +68,18 @@ export default function History() {
 
       if (Array.isArray(data)) {
         setVideos(data);
+        fetchDubStatuses(data);
       } else if (Array.isArray(data.videos)) {
         setVideos(data.videos);
+        fetchDubStatuses(data.videos);
       } else {
         setVideos([]);
+        setDubStatuses({});
       }
     } catch (err) {
       console.log("History error:", err);
       setVideos([]);
+      setDubStatuses({});
     }
   };
 
@@ -49,27 +98,33 @@ export default function History() {
   };
 
   const handleDelete = async (id) => {
-  try {
-    const res = await fetch(`http://localhost:5000/api/videos/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+    try {
+      const res = await fetch(`http://localhost:5000/api/videos/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-    const data = await res.json();
-    console.log("Delete response:", data);
+      const data = await res.json();
+      console.log("Delete response:", data);
 
-    if (!res.ok) {
-      alert(data.message || "Delete failed");
-      return;
+      if (!res.ok) {
+        alert(data.message || "Delete failed");
+        return;
+      }
+
+      setVideos((prev) => prev.filter((video) => video._id !== id));
+      setDubStatuses((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    } catch (err) {
+      console.log("Delete error:", err);
     }
+  };
 
-    setVideos((prev) => prev.filter((video) => video._id !== id));
-  } catch (err) {
-    console.log("Delete error:", err);
-  }
-};
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6">{t.historyTitle}</h2>
@@ -83,28 +138,28 @@ export default function History() {
             const isLink = video.videoType === "link";
 
             return (
-            <div
-  key={video._id || index}
-  onClick={() => {
-    console.log("HISTORY CLICK VIDEO:", video);
+              <div
+                key={video._id || index}
+                onClick={() => {
+                  console.log("HISTORY CLICK VIDEO:", video);
 
-    navigate("/dashboard/watch", {
-      state: {
-        video: {
-          _id: video._id,
-          type: isFile ? "file" : "link",
-          url: isFile
-            ? `http://localhost:5000${video.videoUrl}`
-            : video.videoUrl,
-          link: video.videoUrl,
-          title: video.title,
-          description: video.description,
-        },
-      },
-    });
-  }}
-  className="bg-white p-4 rounded-xl shadow cursor-pointer hover:shadow-lg transition"
->
+                  navigate("/dashboard/watch", {
+                    state: {
+                      video: {
+                        _id: video._id,
+                        type: isFile ? "file" : "link",
+                        url: isFile
+                          ? `http://localhost:5000${video.videoUrl}`
+                          : video.videoUrl,
+                        link: video.videoUrl,
+                        title: video.title,
+                        description: video.description,
+                      },
+                    },
+                  });
+                }}
+                className="bg-white p-4 rounded-xl shadow cursor-pointer hover:shadow-lg transition"
+              >
                 {isFile ? (
                   <video
                     src={`http://localhost:5000${video.videoUrl}`}
@@ -142,15 +197,23 @@ export default function History() {
                   </p>
                 )}
 
+                <p className="text-sm mt-2 font-medium text-violet-600">
+                  {dubStatuses[video._id] === "not_created" && t.dubNotCreated}
+                  {dubStatuses[video._id] === "pending" && t.dubPending}
+                  {dubStatuses[video._id] === "processing" && t.dubProcessing}
+                  {dubStatuses[video._id] === "completed" && t.dubCompleted}
+                  {!dubStatuses[video._id] && t.dubNotCreated}
+</p>
+
                 <button
-  onClick={(e) => {
-    e.stopPropagation();
-    handleDelete(video._id);
-  }}
-  className="mt-3 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
->
-  {t.deleteBtn}
-</button>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(video._id);
+                  }}
+                  className="mt-3 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
+                >
+                  {t.deleteBtn}
+                </button>
               </div>
             );
           })}
