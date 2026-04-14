@@ -1,10 +1,22 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+  formatTimestamp,
+  getVideoSource,
+  getYoutubeEmbedUrl,
+} from "../utils/videoLearning";
 
 export default function Watch() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const video = location.state?.video;
+  const { id } = useParams();
+  const location = useLocation();
+
+  const playerRef = useRef(null);
+
+  const [video, setVideo] = useState(location.state?.video || null);
+  const [loading, setLoading] = useState(Boolean(id && !location.state?.video));
+  const [error, setError] = useState("");
+  const [retrying, setRetrying] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user")) || {};
   const preferredLanguage = user?.preferredLanguage || "English";
@@ -12,22 +24,49 @@ export default function Watch() {
   const [dubStatus, setDubStatus] = useState("not_created");
   const [dubbedVideoUrl, setDubbedVideoUrl] = useState("");
 
-  const getYoutubeEmbedLink = (link) => {
-    if (!link) return "";
+  const fetchVideo = async ({ silent = false } = {}) => {
+    if (!id) return;
 
-    if (link.includes("v=")) {
-      return `https://www.youtube.com/embed/${link.split("v=")[1]?.split("&")[0]}`;
+    try {
+      if (!silent) setLoading(true);
+
+      const res = await fetch(`http://localhost:5000/api/videos/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message);
+
+      setVideo(data.video);
+    } catch (err) {
+      setError(err.message || "Failed to load video");
+    } finally {
+      if (!silent) setLoading(false);
     }
-
-    if (link.includes("youtu.be/")) {
-      return `https://www.youtube.com/embed/${link.split("youtu.be/")[1]?.split("?")[0]}`;
-    }
-
-    return link;
   };
 
   useEffect(() => {
-    const fetchDubStatus = async () => {
+    if (id) fetchVideo();
+  }, [id]);
+
+  // Auto refresh AI processing
+  useEffect(() => {
+    if (!id) return;
+    if (!["pending", "processing"].includes(video?.insightsStatus)) return;
+
+    const interval = setInterval(() => {
+      fetchVideo({ silent: true });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [video]);
+
+  // ================= DUB FETCH =================
+  useEffect(() => {
+    const fetchDub = async () => {
       if (!video?._id) return;
 
       try {
@@ -37,38 +76,28 @@ export default function Watch() {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
-          }
+          },
         );
 
         if (!res.ok) return;
 
         const data = await res.json();
-        console.log("Fetched dub:", data);
 
         if (data.dubbing) {
-          setDubStatus(data.dubbing.processingStatus || "not_created");
-          setDubbedVideoUrl(data.dubbing.dubbedVideoUrl || "");
+          setDubStatus(data.dubbing.processingStatus);
+          setDubbedVideoUrl(data.dubbing.dubbedVideoUrl);
         } else {
           setDubStatus("not_created");
-          setDubbedVideoUrl("");
         }
-      } catch (err) {
-        console.log("Fetch dub error:", err);
-      }
+      } catch {}
     };
 
-    fetchDubStatus();
-    const interval = setInterval(fetchDubStatus, 3000);
-
+    fetchDub();
+    const interval = setInterval(fetchDub, 3000);
     return () => clearInterval(interval);
   }, [video]);
 
   const handleCreateDub = async () => {
-    if (!video?._id) {
-      alert("Video ID not found.");
-      return;
-    }
-
     try {
       const res = await fetch("http://localhost:5000/api/dubbings/create", {
         method: "POST",
@@ -83,118 +112,97 @@ export default function Watch() {
       });
 
       const data = await res.json();
-      console.log("Dub create response:", data);
 
-      if (!res.ok) {
-        if (data.message === "Dub already exists for this language") {
-          setDubStatus("pending");
-          return;
-        }
-
-        alert(data.message || "Failed to create dub");
-        return;
-      }
+      if (!res.ok) throw new Error(data.message);
 
       setDubStatus("pending");
-      alert("Dubbing request created successfully");
+      alert("Dubbing started");
     } catch (err) {
-      console.log("Dub create error:", err);
-      alert("Server error");
+      alert(err.message);
     }
   };
 
-  if (!video) {
-    return (
-      <div className="p-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-          <h2 className="text-xl font-semibold text-gray-800">Video not found</h2>
-          <p className="text-sm text-gray-500 mt-2">
-            Please open this video again from Upload or History.
-          </p>
-          <button
-            onClick={() => navigate("/dashboard/history")}
-            className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-          >
-            Go to History
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // ================= HELPERS =================
+  const embedUrl = useMemo(() => getYoutubeEmbedUrl(video?.videoUrl), [video]);
+
+  const source = useMemo(() => getVideoSource(video), [video]);
+
+  const jumpToTopic = (t) => {
+    if (!playerRef.current) return;
+    playerRef.current.currentTime = t;
+    playerRef.current.play();
+  };
+
+  // ================= UI =================
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (!video) return <div className="p-6">No video</div>;
+
+  const topics = video.topics || [];
+  const notes = video.notes || [];
+  const transcript = video.transcript || "";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          {video.type === "file" ? (
-            <video
-              src={video.url}
-              controls
-              className="w-full rounded-lg"
-            />
-          ) : (
-            <iframe
-              width="100%"
-              height="420"
-              src={getYoutubeEmbedLink(video.link)}
-              title="Video Player"
-              allowFullScreen
-              className="rounded-lg"
-            ></iframe>
-          )}
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold">{video.title}</h1>
 
-          {dubStatus === "completed" && dubbedVideoUrl && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-green-600">
-                Dubbed Video
-              </h3>
-
-              <video
-                src={`http://localhost:5000${dubbedVideoUrl}`}
-                controls
-                className="w-full mt-2 rounded-md"
-              />
-            </div>
-          )}
-
-          <h2 className="text-xl font-bold text-gray-800 mt-4">
-            {video.title || "Original Video"}
-          </h2>
-
-          <p className="text-gray-500 text-sm mt-1">
-            Preferred Language:{" "}
-            <span className="font-medium text-violet-600">
-              {preferredLanguage}
-            </span>
-          </p>
-
-          <div className="mt-4 rounded-lg border border-violet-100 bg-violet-50 p-4">
-            <h3 className="font-semibold text-violet-700">Dubbing</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Original video will play in its original language. You can create
-              a dubbed version in your preferred language.
-            </p>
-
-            {dubStatus === "not_created" && (
-              <button
-                onClick={handleCreateDub}
-                className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-              >
-                Create Dub
-              </button>
-            )}
-          </div>
-        </div>
+      {/* VIDEO PLAYER */}
+      <div className="rounded-xl overflow-hidden bg-black">
+        {video.videoType === "link" && embedUrl ? (
+          <iframe src={embedUrl} className="w-full h-[420px]" />
+        ) : (
+          <video ref={playerRef} src={source} controls className="w-full" />
+        )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-4">
-        <h3 className="text-lg font-semibold text-gray-800">Dub Status</h3>
-        <p className="text-sm text-gray-500 mt-2">
-          {dubStatus === "not_created" && "No dubbed version created yet."}
-          {dubStatus === "pending" && "Dub Status: Pending"}
-          {dubStatus === "processing" && "Dub Status: Processing"}
-          {dubStatus === "completed" && "Dub Status: Completed"}
-        </p>
+      {/* DUB */}
+      <div className="bg-purple-50 p-4 rounded-xl">
+        <h2 className="font-semibold">Dubbing</h2>
+
+        {dubStatus === "not_created" && (
+          <button
+            onClick={handleCreateDub}
+            className="mt-2 bg-purple-600 text-white px-4 py-2 rounded"
+          >
+            Create Dub
+          </button>
+        )}
+
+        {dubStatus === "completed" && dubbedVideoUrl && (
+          <video
+            src={`http://localhost:5000${dubbedVideoUrl}`}
+            controls
+            className="mt-4"
+          />
+        )}
+      </div>
+
+      {/* TOPICS */}
+      <div>
+        <h2 className="font-semibold mb-2">Topics</h2>
+        {topics.map((t, i) => (
+          <button
+            key={i}
+            onClick={() => jumpToTopic(t.timestamp)}
+            className="block text-left mb-2"
+          >
+            {formatTimestamp(t.timestamp)} - {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* NOTES */}
+      <div>
+        <h2 className="font-semibold">Notes</h2>
+        {notes.map((n, i) => (
+          <p key={i}>{n}</p>
+        ))}
+      </div>
+
+      {/* TRANSCRIPT */}
+      <div>
+        <h2 className="font-semibold">Transcript</h2>
+        <p>{transcript}</p>
       </div>
     </div>
   );

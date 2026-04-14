@@ -1,7 +1,7 @@
 export default function Footer() {
   return (
     <footer className="bg-purple-50 border-t border-purple-100">
-      <div className="max-w-7xl mx-auto px-6 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         {/* Top Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Brand */}
@@ -63,7 +63,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-6 border-t border-purple-100 flex flex-col md:flex-row items-center justify-between text-sm text-gray-500">
+        <div className="mt-12 pt-6 border-t border-purple-100 flex flex-col md:flex-row items-center md:items-start text-center md:text-left justify-between text-sm text-gray-500">
           <p>© {new Date().getFullYear()} EduLocal. All rights reserved.</p>
           <p className="mt-2 md:mt-0">Built with ❤️ for accessible education</p>
         </div>

@@ -7,9 +7,24 @@ export default function Upload() {
   const fileInputRef = useRef(null);
   const t = getText();
 
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
   const [videoLink, setVideoLink] = useState("");
   const [videoFile, setVideoFile] = useState(null);
   const [preview, setPreview] = useState(null);
+
+  const parseResponse = async (response) => {
+    const rawText = await response.text();
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      throw new Error(
+        rawText.startsWith("<!DOCTYPE")
+          ? "Backend returned an HTML error page. Check backend logs."
+          : rawText || "Unexpected server response",
+      );
+    }
+  };
 
   const handleUpload = async () => {
     if (!videoLink && !videoFile) {
@@ -25,12 +40,11 @@ export default function Upload() {
     let previewData = null;
     let savedVideo = null;
 
-    // Preview first
+    // Preview
     if (videoFile) {
-      const localUrl = URL.createObjectURL(videoFile);
       previewData = {
         type: "file",
-        url: localUrl,
+        url: URL.createObjectURL(videoFile),
       };
       setPreview(previewData);
     }
@@ -44,6 +58,8 @@ export default function Upload() {
     }
 
     try {
+      let data;
+
       // FILE UPLOAD
       if (videoFile) {
         const formData = new FormData();
@@ -51,20 +67,21 @@ export default function Upload() {
         formData.append("title", videoFile.name);
         formData.append("description", "Uploaded video file");
 
-        const res = await fetch("http://localhost:5000/api/videos/upload-file", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+        const res = await fetch(
+          "http://localhost:5000/api/videos/upload-file",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: formData,
           },
-          body: formData,
-        });
+        );
 
-        const data = await res.json();
-        console.log("File upload response:", data);
+        data = await parseResponse(res);
 
         if (!res.ok) {
-          alert(data.message || "Upload failed");
-          return;
+          throw new Error(data.message || "File upload failed");
         }
 
         savedVideo = data.video;
@@ -72,186 +89,101 @@ export default function Upload() {
 
       // LINK UPLOAD
       if (videoLink) {
-        const res = await fetch("http://localhost:5000/api/videos/upload-link", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+        const res = await fetch(
+          "http://localhost:5000/api/videos/upload-link",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              title: "Uploaded link video",
+              description: "Video via link",
+              videoUrl: videoLink,
+            }),
           },
-          body: JSON.stringify({
-            title: "Uploaded link video",
-            description: "Video via link",
-            videoUrl: videoLink,
-          }),
-        });
+        );
 
-        const data = await res.json();
-        console.log("Link upload response:", data);
+        data = await parseResponse(res);
 
         if (!res.ok) {
-          alert(data.message || "Upload failed");
-          return;
+          throw new Error(data.message || "Link upload failed");
         }
 
         savedVideo = data.video;
       }
 
-      // Reset input fields
+      // Reset
       setVideoLink("");
       setVideoFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
 
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      // Upload ke baad watch page kholo with REAL saved video
-      if (savedVideo) {
-        navigate("/dashboard/watch", {
+      // Navigate to watch page (BEST VERSION)
+      navigate(
+        savedVideo?._id
+          ? `/dashboard/watch/${savedVideo._id}`
+          : "/dashboard/watch",
+        {
           state: {
-            video: {
-              _id: savedVideo._id,
-              type: savedVideo.videoType === "file" ? "file" : "link",
-              url:
-                savedVideo.videoType === "file"
-                  ? `http://localhost:5000${savedVideo.videoUrl}`
-                  : savedVideo.videoUrl,
-              link: savedVideo.videoUrl,
-              title: savedVideo.title,
-              description: savedVideo.description,
-            },
+            video: savedVideo || previewData,
           },
-        });
-      } else {
-        alert("Upload completed but video data not found");
-      }
+        },
+      );
     } catch (err) {
       console.log("Backend error:", err);
-      alert("Upload failed");
+      alert(err.message || "Upload failed");
     }
   };
 
   return (
-    <div className="w-full bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow w-full max-w-lg">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          {t.uploadTitle}
-        </h2>
+    <div className="w-full min-h-screen bg-gray-100 flex items-center justify-center px-4 py-8">
+      <div className="bg-white p-6 sm:p-8 rounded-xl shadow w-full max-w-lg">
+        <h2 className="text-2xl font-bold mb-6 text-center">{t.uploadTitle}</h2>
+
+        <p className="mb-6 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          AI will process this video and generate timestamps, transcript, and
+          notes in{" "}
+          <span className="font-semibold">
+            {currentUser.preferredLanguage || "your selected language"}
+          </span>
+          .
+        </p>
 
         {/* Link Upload */}
         <div className="mb-4">
-          <label className="block mb-2 font-medium">
-            {t.uploadViaLink}
-          </label>
+          <label className="block mb-2 font-medium">{t.uploadViaLink}</label>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              placeholder="Paste video link..."
               value={videoLink}
               onChange={(e) => setVideoLink(e.target.value)}
               className="w-full border px-4 py-2 rounded-md"
             />
-
-            {videoLink && (
-              <button
-                type="button"
-                onClick={() => setVideoLink("")}
-                className="bg-red-500 text-white px-4 py-2 rounded-md"
-              >
-                Delete
-              </button>
-            )}
           </div>
         </div>
 
         {/* File Upload */}
         <div className="mb-6">
-          <label className="block mb-2 font-medium">
-            {t.uploadVideoFile}
-          </label>
+          <label className="block mb-2 font-medium">{t.uploadVideoFile}</label>
 
-          <div className="flex gap-2 items-center">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={(e) => setVideoFile(e.target.files[0] || null)}
-              className="w-full border px-4 py-2 rounded-md"
-            />
-
-            {videoFile && (
-              <button
-                type="button"
-                onClick={() => {
-                  setVideoFile(null);
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
-                }}
-                className="bg-red-500 text-white px-4 py-2 rounded-md"
-              >
-                Delete
-              </button>
-            )}
-          </div>
-
-          {videoFile && (
-            <p className="text-sm text-gray-500 mt-2">
-              {t.selectedFile}: {videoFile.name}
-            </p>
-          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => setVideoFile(e.target.files[0] || null)}
+            className="w-full border px-4 py-2 rounded-md"
+          />
         </div>
 
-        {/* Upload Button */}
         <button
-          type="button"
           onClick={handleUpload}
-          className="w-full bg-purple-600 text-white py-2 rounded-md mb-3"
+          className="w-full bg-purple-600 text-white py-2 rounded-md"
         >
           {t.uploadBtn}
         </button>
 
-        {/* Preview */}
-        {preview && (
-          <div className="mt-6">
-            <h3 className="font-semibold mb-2">{t.previewTitle}</h3>
-
-            {preview.type === "file" ? (
-              <video
-                src={preview.url}
-                controls
-                className="w-full rounded-md"
-              />
-            ) : preview.link.includes("youtube.com") ||
-              preview.link.includes("youtu.be") ? (
-              <iframe
-                width="100%"
-                height="250"
-                src={
-                  preview.link.includes("v=")
-                    ? `https://www.youtube.com/embed/${preview.link
-                        .split("v=")[1]
-                        ?.split("&")[0]}`
-                    : `https://www.youtube.com/embed/${preview.link
-                        .split("youtu.be/")[1]
-                        ?.split("?")[0]}`
-                }
-                title="video"
-                allowFullScreen
-                className="rounded-md"
-              ></iframe>
-            ) : (
-              <video
-                src={preview.link}
-                controls
-                className="w-full rounded-md"
-              />
-            )}
-          </div>
-        )}
-
-        {/* Back Button */}
         <button
-          type="button"
           onClick={() => navigate("/dashboard")}
           className="w-full bg-gray-300 py-2 rounded-md mt-4"
         >

@@ -31,7 +31,9 @@ function App() {
         <Route index element={<DashboardHome />} />
         <Route path="upload" element={<Upload />} />
         <Route path="history" element={<History />} />
+        <Route path="video-learning" element={<History />} />
         <Route path="watch" element={<Watch />} />
+        <Route path="watch/:id" element={<Watch />} />
       </Route>
     </Routes>
   );

@@ -6,7 +6,7 @@ export default function Community() {
       id="community"
       className="relative py-28 bg-gradient-to-b from-purple-50 to-white"
     >
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-10 sm:gap-16 items-center">
         {/* LEFT: Content */}
         <div>
           <span className="inline-block mb-4 px-4 py-1 text-sm rounded-full bg-purple-100 text-purple-700 font-medium">
@@ -23,12 +23,12 @@ export default function Community() {
           </p>
 
           {/* Testimonial Card */}
-          <div className="relative bg-purple-900 text-white rounded-3xl p-10 shadow-2xl">
+          <div className="relative bg-purple-900 text-white rounded-3xl p-6 sm:p-10 shadow-2xl">
             <span className="absolute top-6 left-6 text-6xl text-purple-700 leading-none">
               “
             </span>
 
-            <p className="relative text-lg leading-relaxed mb-8 z-10">
+            <p className="relative text-base sm:text-lg leading-relaxed mb-8 z-10">
               EduLocal changed my life. I learned new skills in my own language,
               and now I run my own small business. The AI notes helped me
               remember everything easily.
@@ -53,11 +53,11 @@ export default function Community() {
         </div>
 
         {/* RIGHT: Image */}
-        <div className="relative">
+        <div className="relative mt-6 lg:mt-0">
           <div className="absolute -inset-4 bg-purple-200 rounded-3xl blur-2xl opacity-40" />
           <img
             alt="Learner testimonial"
-            className="relative w-full h-[520px] object-cover rounded-3xl shadow-xl"
+            className="relative w-full h-[320px] sm:h-[420px] lg:h-[520px] object-cover rounded-3xl shadow-xl"
             src="https://readdy.ai/api/search-image?query=confident%20rural%20indian%20woman%20using%20smartphone%20for%20learning%20smiling%20natural%20lighting%20warm%20tones%20educational%20empowerment%20portrait%20simple%20background&width=500&height=700&seq=testimonial-woman&orientation=portrait"
           />
         </div>
