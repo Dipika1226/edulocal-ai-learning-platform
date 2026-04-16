@@ -1,8 +1,7 @@
 import express from "express";
 import multer from "multer";
-import { deleteVideo, myVideos, uploadFile, uploadLink } from "../controllers/videoController.js";
+import { deleteVideo, getPublicVideos, myVideos, uploadFile, uploadLink } from "../controllers/videoController.js";
 import { protect } from "../middleware/auth.js";
-
 const router = express.Router();
 
 const storage = multer.diskStorage({
@@ -25,5 +24,5 @@ router.post("/upload-file", protect, upload.single("video"), uploadFile);
 router.post("/upload-link", protect, uploadLink);
 router.get("/my-videos", protect, myVideos);
 router.delete("/:id", protect, deleteVideo);
-
+router.get("/public", getPublicVideos);
 export default router;

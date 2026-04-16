@@ -10,6 +10,7 @@ export default function Upload() {
   const [videoLink, setVideoLink] = useState("");
   const [videoFile, setVideoFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [isPublic, setIsPublic] = useState(true);
 
   const handleUpload = async () => {
     if (!videoLink && !videoFile) {
@@ -49,7 +50,8 @@ export default function Upload() {
         const formData = new FormData();
         formData.append("video", videoFile);
         formData.append("title", videoFile.name);
-        formData.append("description", "t.uploadedVideoFile");
+        formData.append("description", t.uploadedVideoFile);
+        formData.append("isPublic", isPublic);
 
         const res = await fetch("http://localhost:5000/api/videos/upload-file", {
           method: "POST",
@@ -82,6 +84,7 @@ export default function Upload() {
             title: t.uploadedLinkVideo,
             description: t.videoViaLink,
             videoUrl: videoLink,
+            isPublic,
           }),
         });
 
@@ -99,6 +102,7 @@ export default function Upload() {
       // Reset input fields
       setVideoLink("");
       setVideoFile(null);
+      setIsPublic(true);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -199,6 +203,35 @@ export default function Upload() {
               {t.selectedFile}: {videoFile.name}
             </p>
           )}
+        </div>
+
+        {/* Video Visibility */}
+        <div className="mb-6">
+          <label className="block mb-2 font-medium">
+            Video Visibility
+          </label>
+
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="visibility"
+                checked={isPublic === true}
+                onChange={() => setIsPublic(true)}
+              />
+              Public
+            </label>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="visibility"
+                checked={isPublic === false}
+                onChange={() => setIsPublic(false)}
+              />
+              Private
+            </label>
+          </div>
         </div>
 
         {/* Upload Button */}

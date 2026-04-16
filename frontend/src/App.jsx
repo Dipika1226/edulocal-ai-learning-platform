@@ -8,10 +8,10 @@ import SignupStep2 from "./pages/auth/SignupStep2";
 import DashboardHome from "./pages/dashboard/DashboardHome";
 import History from "./pages/History";
 import Landing from "./pages/Landing";
+import PublicVideos from "./pages/PublicVideos";
 import Settings from "./pages/Settings";
 import Upload from "./pages/Upload";
 import Watch from "./pages/Watch";
-
 function App() {
   return (
     <Routes>
@@ -34,6 +34,7 @@ function App() {
         <Route path="history" element={<History />} />
         <Route path="watch" element={<Watch />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="/dashboard/public" element={<PublicVideos />} />
       </Route>
     </Routes>
   );

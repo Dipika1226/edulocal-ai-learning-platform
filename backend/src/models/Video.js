@@ -10,7 +10,10 @@ const videoSchema = new mongoose.Schema(
       enum: ["file", "link"],
       required: true,
     },
-
+    isPublic: {
+      type: Boolean,
+      default: true,
+    },
     videoUrl: { type: String, required: true },
 
     uploadedBy: {
