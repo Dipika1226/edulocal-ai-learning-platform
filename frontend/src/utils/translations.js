@@ -51,7 +51,10 @@ openVideoAgain: "Please open this video again from Upload or History.",
 goToHistory: "Go to History",
 noDubYet: "No dubbed version created yet.",
 dubStatusTitle: "Dub Status",
-  },
+visibility: "Video Visibility",
+public: "Public",
+private: "Private",
+},
 
   Hindi: {
     dashboard: "डैशबोर्ड",
@@ -94,8 +97,7 @@ originalVideo: "मूल वीडियो",
 dubbedVideo: "डब्ड वीडियो",
 preferredLanguageLabel: "पसंदीदा भाषा",
 dubbingTitle: "डबिंग",
-dubbingDescription:
-  "मूल वीडियो अपनी मूल भाषा में चलेगी। आप अपनी पसंदीदा भाषा में डब्ड वर्ज़न बना सकते हैं।",
+dubbingDescription: "मूल वीडियो अपनी मूल भाषा में चलेगी। आप अपनी पसंदीदा भाषा में डब्ड वर्ज़न बना सकते हैं।",
 createDub: "डब बनाएं",
 dubReady: "डब तैयार है। जब चाहें Dubbed मोड में बदलें।",
 dubRequestCreated: "डबिंग अनुरोध पहले ही बनाया जा चुका है।",
@@ -105,7 +107,9 @@ openVideoAgain: "कृपया इस वीडियो को Upload या 
 goToHistory: "History पर जाएं",
 noDubYet: "अभी कोई डब्ड वर्ज़न नहीं है।",
 dubStatusTitle: "डब स्टेटस",
-},
+visibility: "वीडियो दृश्यता",
+public: "सार्वजनिक",
+private: "निजी",},
 };
 
 export const getCurrentLanguage = () => {

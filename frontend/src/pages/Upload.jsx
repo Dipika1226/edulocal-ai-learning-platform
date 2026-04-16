@@ -208,7 +208,7 @@ export default function Upload() {
         {/* Video Visibility */}
         <div className="mb-6">
           <label className="block mb-2 font-medium">
-            Video Visibility
+            {t.videoVisibility}
           </label>
 
           <div className="flex gap-6">
@@ -219,7 +219,7 @@ export default function Upload() {
                 checked={isPublic === true}
                 onChange={() => setIsPublic(true)}
               />
-              Public
+              {t.public}
             </label>
 
             <label className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export default function Upload() {
                 checked={isPublic === false}
                 onChange={() => setIsPublic(false)}
               />
-              Private
+              {t.private}
             </label>
           </div>
         </div>
