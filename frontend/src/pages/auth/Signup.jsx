@@ -11,8 +11,9 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleContinue = (e) => {
+  const handleContinue = async (e) => {
     e.preventDefault();
 
     if (!fullName || !email || !password || !confirmPassword) {
@@ -25,114 +26,125 @@ export default function Signup() {
       return;
     }
 
-    // Basic signup data temporarily save
-    sessionStorage.setItem(
-      "signupData",
-      JSON.stringify({
-        username: fullName,
-        email,
-        password,
-      })
-    );
-
-    navigate("/signup-step2");
+    try {
+      setLoading(true);
+      localStorage.setItem(
+        "signupDraft",
+        JSON.stringify({
+          username: fullName,
+          email,
+          password,
+        }),
+      );
+      navigate("/signup-step2");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-4">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.10),transparent_32%),radial-gradient(circle_at_bottom,rgba(45,212,191,0.12),transparent_30%),linear-gradient(135deg,#fbf7ff_0%,#ffffff_52%,#f3fbfb_100%)] px-4 py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-md flex-col items-center justify-center">
+        <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-purple-600">EduLocal</h1>
         </div>
 
-        <h2 className="text-2xl font-semibold text-gray-900 text-center">
+        <h1 className="text-center text-[30px] font-semibold leading-tight text-slate-900">
           Create Your Account
-        </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
+        </h1>
+        <p className="mt-2 text-center text-[13px] leading-5 text-slate-500">
           Start your learning journey today
         </p>
 
-        <div className="flex items-center justify-center gap-3 mt-6">
-          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-600 text-white text-sm font-medium">
+        <div className="mb-8 mt-6 flex items-center gap-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600 text-[13px] font-semibold text-white">
             1
-          </span>
-          <span className="w-12 h-[2px] bg-gray-200" />
-          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 text-sm">
+          </div>
+          <div className="h-0.5 w-16 bg-purple-200" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-[13px] font-semibold text-slate-600">
             2
-          </span>
+          </div>
         </div>
 
-        <form onSubmit={handleContinue} className="mt-8 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-800">
+        <div className="w-full rounded-[26px] border border-white/80 bg-white/90 p-6 shadow-[0_22px_55px_rgba(148,163,184,0.18)] backdrop-blur sm:p-7">
+          <h2 className="mb-4 text-[15px] font-semibold text-slate-800">
             Basic Information
-          </h3>
+          </h2>
 
-          <input
-            type="text"
-            placeholder="Full name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500"
-          />
-
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500"
-          />
-
-          <div className="relative">
+          <form onSubmit={handleContinue} className="space-y-4">
             <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Create a password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500"
+              type="text"
+              placeholder="Full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[14px] outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
             />
-            <div
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </div>
-          </div>
 
-          <div className="relative">
             <input
-              type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500"
+              type="email"
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[14px] outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
             />
-            <div
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-            >
-              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Create a password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-11 text-[14px] outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition"
-          >
-            Continue →
-          </button>
-        </form>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-11 text-[14px] outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
 
-        <p className="text-sm text-gray-600 text-center mt-6">
-          Already have an account?{" "}
-          <Link to="/login" className="text-purple-600 font-medium">
-            Sign in
-          </Link>
-        </p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-linear-to-r from-fuchsia-600 to-violet-600 py-3 text-[14px] font-semibold text-white transition hover:shadow-lg disabled:opacity-60"
+            >
+              {loading ? "Please wait..." : "Continue"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-[13px] text-slate-600">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              className="font-medium text-purple-600 hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </div>
 
         <Link
           to="/"
-          className="block text-center text-sm text-gray-500 mt-6 hover:underline"
+          className="mt-6 text-[13px] text-slate-500 hover:text-purple-600"
         >
           ← Back to home
         </Link>

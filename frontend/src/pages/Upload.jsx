@@ -1,56 +1,85 @@
+import {
+  Brain,
+  FileText,
+  Link as LinkIcon,
+  MessageSquareText,
+  Sparkles,
+  UploadCloud,
+  Video,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getText } from "../utils/translations";
+
+const categoryOptions = [
+  "Education",
+  "Technology",
+  "Language Learning",
+  "Business",
+  "Personal Development",
+];
 
 export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const t = getText();
 
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+  const [uploadMethod, setUploadMethod] = useState("file");
   const [videoLink, setVideoLink] = useState("");
   const [videoFile, setVideoFile] = useState(null);
-  const [preview, setPreview] = useState(null);
   const [isPublic, setIsPublic] = useState(true);
+  const [videoTitle, setVideoTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const parseResponse = async (response) => {
+    const rawText = await response.text();
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      throw new Error(
+        rawText.startsWith("<!DOCTYPE")
+          ? "Backend returned an HTML error page. Check backend logs."
+          : rawText || "Unexpected server response"
+      );
+    }
+  };
+
+  const resetForm = () => {
+    setVideoLink("");
+    setVideoFile(null);
+    setVideoTitle("");
+    setCategory("");
+    setDescription("");
+    setIsPublic(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleUpload = async () => {
-    if (!videoLink && !videoFile) {
-      alert("Please choose one option");
+    if (uploadMethod === "file" && !videoFile) {
+      alert("Please select a video file");
       return;
     }
 
-    if (videoLink && videoFile) {
-      alert("Upload via single option only");
+    if (uploadMethod === "link" && !videoLink.trim()) {
+      alert("Please paste a video link");
       return;
-    }
-
-    let previewData = null;
-    let savedVideo = null;
-
-    // Preview first
-    if (videoFile) {
-      const localUrl = URL.createObjectURL(videoFile);
-      previewData = {
-        type: "file",
-        url: localUrl,
-      };
-      setPreview(previewData);
-    }
-
-    if (videoLink) {
-      previewData = {
-        type: "link",
-        link: videoLink,
-      };
-      setPreview(previewData);
     }
 
     try {
-      // FILE UPLOAD
-      if (videoFile) {
+      setIsUploading(true);
+
+      let savedVideo = null;
+      let data;
+
+      if (uploadMethod === "file" && videoFile) {
         const formData = new FormData();
         formData.append("video", videoFile);
-        formData.append("title", videoFile.name);
-        formData.append("description", t.uploadedVideoFile);
+        formData.append("title", videoTitle.trim() || videoFile.name);
+        formData.append("description", description.trim() || "Uploaded video file");
         formData.append("isPublic", isPublic);
 
         const res = await fetch("http://localhost:5000/api/videos/upload-file", {
@@ -61,19 +90,16 @@ export default function Upload() {
           body: formData,
         });
 
-        const data = await res.json();
-        console.log("File upload response:", data);
+        data = await parseResponse(res);
 
         if (!res.ok) {
-          alert(data.message || "Upload failed");
-          return;
+          throw new Error(data.message || "File upload failed");
         }
 
         savedVideo = data.video;
       }
 
-      // LINK UPLOAD
-      if (videoLink) {
+      if (uploadMethod === "link" && videoLink.trim()) {
         const res = await fetch("http://localhost:5000/api/videos/upload-link", {
           method: "POST",
           headers: {
@@ -81,215 +107,271 @@ export default function Upload() {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
           body: JSON.stringify({
-            title: t.uploadedLinkVideo,
-            description: t.videoViaLink,
-            videoUrl: videoLink,
+            title: videoTitle.trim() || "Uploaded link video",
+            description: description.trim() || "Video via link",
+            videoUrl: videoLink.trim(),
+            category,
             isPublic,
           }),
         });
 
-        const data = await res.json();
-        console.log("Link upload response:", data);
+        data = await parseResponse(res);
 
         if (!res.ok) {
-          alert(data.message || "Upload failed");
-          return;
+          throw new Error(data.message || "Link upload failed");
         }
 
         savedVideo = data.video;
       }
 
-      // Reset input fields
-      setVideoLink("");
-      setVideoFile(null);
-      setIsPublic(true);
+      resetForm();
 
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      // Upload ke baad watch page kholo with REAL saved video
-      if (savedVideo) {
-        navigate("/dashboard/watch", {
+      navigate(
+        savedVideo?._id ? `/dashboard/watch/${savedVideo._id}` : "/dashboard/watch",
+        {
           state: {
-            video: {
-              _id: savedVideo._id,
-              type: savedVideo.videoType === "file" ? "file" : "link",
-              url:
-                savedVideo.videoType === "file"
-                  ? `http://localhost:5000${savedVideo.videoUrl}`
-                  : savedVideo.videoUrl,
-              link: savedVideo.videoUrl,
-              title: savedVideo.title,
-              description: savedVideo.description,
-            },
+            video: savedVideo,
           },
-        });
-      } else {
-        alert("Upload completed but video data not found");
-      }
+        }
+      );
     } catch (err) {
       console.log("Backend error:", err);
-      alert("Upload failed");
+      alert(err.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
     }
   };
 
+  const methodCardClass = (method) =>
+    [
+      "rounded-xl border px-4 py-5 text-left transition-all",
+      uploadMethod === method
+        ? "border-purple-500 bg-purple-50 shadow-[0_12px_30px_rgba(147,51,234,0.10)]"
+        : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/40",
+    ].join(" ");
+
   return (
-    <div className="w-full bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow w-full max-w-lg">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          {t.uploadTitle}
-        </h2>
-
-        {/* Link Upload */}
-        <div className="mb-4">
-          <label className="block mb-2 font-medium">
-            {t.uploadViaLink}
-          </label>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Paste video link..."
-              value={videoLink}
-              onChange={(e) => setVideoLink(e.target.value)}
-              className="w-full border px-4 py-2 rounded-md"
-            />
-
-            {videoLink && (
-              <button
-                type="button"
-                onClick={() => setVideoLink("")}
-                className="bg-red-500 text-white px-4 py-2 rounded-md"
-              >
-                Delete
-              </button>
-            )}
-          </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(168,85,247,0.10),_transparent_35%),linear-gradient(180deg,#fcf8ff_0%,#ffffff_45%,#faf5ff_100%)] px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6 text-center">
+          <h1 className="text-[30px] font-bold tracking-tight text-slate-900">
+            Upload Learning Content
+          </h1>
+          <p className="mt-2 text-[14px] text-slate-600">
+            Share your knowledge with the community
+          </p>
         </div>
 
-        {/* File Upload */}
-        <div className="mb-6">
-          <label className="block mb-2 font-medium">
-            {t.uploadVideoFile}
-          </label>
-
-          <div className="flex gap-2 items-center">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={(e) => setVideoFile(e.target.files[0] || null)}
-              className="w-full border px-4 py-2 rounded-md"
-            />
-
-            {videoFile && (
-              <button
-                type="button"
-                onClick={() => {
-                  setVideoFile(null);
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
-                }}
-                className="bg-red-500 text-white px-4 py-2 rounded-md"
-              >
-                Delete
-              </button>
-            )}
+        <div className="rounded-[26px] border border-white/80 bg-white/90 p-5 shadow-[0_22px_50px_rgba(148,163,184,0.14)] backdrop-blur sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-[15px] font-semibold text-slate-900">
+              Choose Upload Method
+            </h2>
           </div>
 
-          {videoFile && (
-            <p className="text-sm text-gray-500 mt-2">
-              {t.selectedFile}: {videoFile.name}
-            </p>
-          )}
-        </div>
-
-        {/* Video Visibility */}
-        <div className="mb-6">
-          <label className="block mb-2 font-medium">
-            {t.videoVisibility}
-          </label>
-
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="visibility"
-                checked={isPublic === true}
-                onChange={() => setIsPublic(true)}
+          <div className="grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setUploadMethod("file")}
+              className={methodCardClass("file")}
+            >
+              <UploadCloud
+                className={`mb-4 ${
+                  uploadMethod === "file" ? "text-purple-600" : "text-purple-400"
+                }`}
+                size={24}
               />
-              {t.public}
-            </label>
+              <p className="text-[16px] font-semibold text-slate-900">Upload Video File</p>
+              <p className="mt-1 text-[13px] text-slate-500">Upload from your device</p>
+            </button>
 
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="visibility"
-                checked={isPublic === false}
-                onChange={() => setIsPublic(false)}
+            <button
+              type="button"
+              onClick={() => setUploadMethod("link")}
+              className={methodCardClass("link")}
+            >
+              <LinkIcon
+                className={`mb-4 ${
+                  uploadMethod === "link" ? "text-purple-600" : "text-purple-400"
+                }`}
+                size={24}
               />
-              {t.private}
-            </label>
+              <p className="text-[16px] font-semibold text-slate-900">YouTube Link</p>
+              <p className="mt-1 text-[13px] text-slate-500">Paste a YouTube URL</p>
+            </button>
           </div>
-        </div>
 
-        {/* Upload Button */}
-        <button
-          type="button"
-          onClick={handleUpload}
-          className="w-full bg-purple-600 text-white py-2 rounded-md mb-3"
-        >
-          {t.uploadBtn}
-        </button>
+          <div className="mt-6 space-y-5">
+            {uploadMethod === "file" ? (
+              <div>
+                <label className="mb-2.5 block text-[14px] font-semibold text-slate-800">
+                  Select Video File
+                </label>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full flex-col items-center justify-center rounded-[20px] border border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-white px-5 py-10 text-center transition hover:border-purple-400 hover:from-purple-100"
+                >
+                  <Video className="mb-3 text-purple-500" size={36} />
+                  <p className="text-[17px] font-semibold text-slate-900">
+                    Click to upload or drag and drop
+                  </p>
+                  <p className="mt-2 text-[13px] text-slate-500">
+                    MP4, WebM, MOV, MKV
+                  </p>
+                  {videoFile ? (
+                    <p className="mt-3 rounded-full bg-purple-100 px-4 py-1.5 text-[13px] font-medium text-purple-700">
+                      Selected: {videoFile.name}
+                    </p>
+                  ) : null}
+                </button>
 
-        {/* Preview */}
-        {preview && (
-          <div className="mt-6">
-            <h3 className="font-semibold mb-2">{t.previewTitle}</h3>
-
-            {preview.type === "file" ? (
-              <video
-                src={preview.url}
-                controls
-                className="w-full rounded-md"
-              />
-            ) : preview.link.includes("youtube.com") ||
-              preview.link.includes("youtu.be") ? (
-              <iframe
-                width="100%"
-                height="250"
-                src={
-                  preview.link.includes("v=")
-                    ? `https://www.youtube.com/embed/${preview.link
-                        .split("v=")[1]
-                        ?.split("&")[0]}`
-                    : `https://www.youtube.com/embed/${preview.link
-                        .split("youtu.be/")[1]
-                        ?.split("?")[0]}`
-                }
-                title="video"
-                allowFullScreen
-                className="rounded-md"
-              ></iframe>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+                  onChange={(e) => {
+                    const file = e.target.files[0] || null;
+                    setVideoFile(file);
+                    if (file && !videoTitle.trim()) {
+                      setVideoTitle(file.name.replace(/\.[^/.]+$/, ""));
+                    }
+                  }}
+                  className="hidden"
+                />
+              </div>
             ) : (
-              <video
-                src={preview.link}
-                controls
-                className="w-full rounded-md"
-              />
+              <div>
+                <label className="mb-2.5 block text-[14px] font-semibold text-slate-800">
+                  Paste Video Link
+                </label>
+                <input
+                  type="text"
+                  value={videoLink}
+                  onChange={(e) => setVideoLink(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[14px] text-slate-800 outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
+                />
+              </div>
             )}
-          </div>
-        )}
 
-        {/* Back Button */}
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard")}
-          className="w-full bg-gray-300 py-2 rounded-md mt-4"
-        >
-          {t.backToDashboard}
-        </button>
+            <div>
+              <label className="mb-2.5 block text-[14px] font-semibold text-slate-800">
+                Video Title
+              </label>
+              <input
+                type="text"
+                value={videoTitle}
+                onChange={(e) => setVideoTitle(e.target.value)}
+                placeholder="Enter a descriptive title"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[14px] text-slate-800 outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2.5 block text-[14px] font-semibold text-slate-800">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-[14px] text-slate-800 outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
+              >
+                <option value="">Select a category</option>
+                {categoryOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2.5 block text-[14px] font-semibold text-slate-800">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe what learners will gain from this video"
+                rows={4}
+                className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-[14px] text-slate-800 outline-none transition focus:border-purple-400 focus:ring-2 focus:ring-purple-200"
+              />
+            </div>
+            {/* ✅ VISIBILITY (ONLY NEW UI) */}
+            <div>
+              <p className="font-medium mb-1">Visibility</p>
+              <label className="mr-4">
+                <input
+                  type="radio"
+                  checked={isPublic}
+                  onChange={() => setIsPublic(true)}
+                />{" "}
+                Public
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  checked={!isPublic}
+                  onChange={() => setIsPublic(false)}
+                />{" "}
+                Private
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={isUploading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 py-3 text-[14px] font-semibold text-white transition hover:shadow-lg disabled:opacity-60"
+            >
+              <Sparkles size={16} />
+              {isUploading ? "Processing..." : "Process with AI"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
+            <Brain className="mb-2.5 text-purple-500" size={20} />
+            <h3 className="text-[16px] font-semibold text-slate-900">AI Analysis</h3>
+            <p className="mt-1 text-[13px] text-slate-500">
+              Automatic topic detection and timestamps
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
+            <FileText className="mb-2.5 text-purple-500" size={20} />
+            <h3 className="text-[16px] font-semibold text-slate-900">Smart Notes</h3>
+            <p className="mt-1 text-[13px] text-slate-500">
+              AI-generated notes for learners
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
+            <MessageSquareText className="mb-2.5 text-purple-500" size={20} />
+            <h3 className="text-[16px] font-semibold text-slate-900">Auto Quizzes</h3>
+            <p className="mt-1 text-[13px] text-slate-500">
+              Learning aids created automatically
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-purple-50 px-4 py-3 text-[13px] text-purple-900">
+          <p className="leading-5">
+            AI will process this video in{" "}
+            <span className="font-semibold">
+              {currentUser.preferredLanguage || "your selected language"}
+            </span>
+            .
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="rounded-full border border-purple-300 bg-white px-4 py-2 text-[13px] font-medium text-purple-700 transition hover:bg-purple-100"
+          >
+            {t.backToDashboard}
+          </button>
+        </div>
       </div>
     </div>
   );

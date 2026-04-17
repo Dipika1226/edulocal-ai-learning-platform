@@ -9,7 +9,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-100">
 
       {/* Navbar */}
-      <div className="bg-white shadow-md px-6 py-4 flex justify-between items-center">
+      <div className="bg-white shadow-md px-4 sm:px-6 py-4 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-start sm:items-center">
         <h1 className="text-xl font-bold text-purple-600">EduLocal</h1>
 
         <button
@@ -21,15 +21,15 @@ export default function Dashboard() {
       </div>
 
       {/* Main Section */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
 
         {/* Welcome */}
-        <div className="bg-white p-6 rounded-xl shadow mb-6">
+        <div className="bg-white p-5 sm:p-6 rounded-xl shadow mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">
             Welcome to Dashboard 🎉
           </h2>
 
-          <p className="text-gray-600 mt-2 text-lg">
+          <p className="text-gray-600 mt-2 text-base sm:text-lg">
             Hello, <span className="font-bold text-purple-600">{userName}</span> 👋
           </p>
         </div>
