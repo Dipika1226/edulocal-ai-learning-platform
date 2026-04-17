@@ -41,7 +41,7 @@ console.log("login user:", data.user);
 
   return (
     <div className="min-h-screen flex items-start justify-center bg-gradient-to-br from-purple-50 via-white to-teal-50 px-4 pt-10 pb-8 sm:pt-12">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+      <div className="w-full max-w-md rounded-[26px] bg-white p-6 shadow-xl sm:p-7">
 
         {/* Logo */}
         <div className="text-center mb-6">
@@ -49,10 +49,10 @@ console.log("login user:", data.user);
         </div>
 
         {/* Heading */}
-        <h2 className="text-2xl font-semibold text-gray-900 text-center">
+        <h2 className="text-[30px] font-semibold leading-tight text-gray-900 text-center">
           Welcome Back
         </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
+        <p className="mt-2 text-[13px] leading-5 text-gray-500 text-center">
           Continue your learning journey
         </p>
 
@@ -61,7 +61,7 @@ console.log("login user:", data.user);
 
           {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-[14px] font-medium text-gray-700">
               Email Address
             </label>
             <input
@@ -69,13 +69,13 @@ console.log("login user:", data.user);
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
 
           {/* Password */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-[14px] font-medium text-gray-700">
               Password
             </label>
 
@@ -85,7 +85,7 @@ console.log("login user:", data.user);
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
 
               {/* Toggle Button */}
@@ -99,7 +99,7 @@ console.log("login user:", data.user);
           </div>
 
           {/* Remember / Forgot */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-3">
+          <div className="flex flex-col gap-3 text-[13px] sm:flex-row sm:items-center sm:justify-between">
             <label className="flex items-center gap-2 text-gray-600">
               <input type="checkbox" className="rounded" />
               Remember me
@@ -112,27 +112,27 @@ console.log("login user:", data.user);
           {/* Button */}
           <button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-md font-medium transition"
+            className="w-full rounded-xl bg-purple-600 py-3 text-[14px] font-medium text-white transition hover:bg-purple-700"
           >
             Sign In
           </button>
         </form>
 
         {/* Footer */}
-        <p className="text-sm text-gray-600 text-center mt-6">
+        <p className="mt-6 text-center text-[13px] text-gray-600">
           Don’t have an account?{" "}
           <Link to="/signup" className="text-purple-600 font-medium">
             Sign up now
           </Link>
         </p>
 
-        <p className="text-xs text-gray-400 text-center mt-6">
+        <p className="mt-6 text-center text-[12px] text-gray-400">
           © Demo Admin: admin@edulocal.com / admin123
         </p>
 
         <Link
           to="/"
-          className="block text-center text-sm text-gray-500 mt-6 hover:underline"
+          className="mt-6 block text-center text-[13px] text-gray-500 hover:underline"
         >
           ← Back to home
         </Link>

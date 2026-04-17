@@ -1,3 +1,4 @@
+import fs from "fs";
 import Video from "../models/Video.js";
 import User from "../models/User.js";
 import { queueVideoInsights } from "../services/videoInsightsService.js";
@@ -27,6 +28,30 @@ export const uploadLink = async (req, res) => {
   }
 };
 
+// export const uploadFile = async (req, res) => {
+//   try {
+//     const { title, description } = req.body;
+//     const user = await User.findById(req.user.id).select("preferredLanguage");
+
+//     if (!title || !req.file) {
+//       return res.status(400).json({ message: "Title & video file required" });
+//     }
+
+//     const video = await Video.create({
+//       title,
+//       description,
+//       videoType: "file",
+//       videoUrl: `/uploads/${req.file.filename}`,
+//       learningLanguage: user?.preferredLanguage || "English",
+//       uploadedBy: req.user.id,
+//     });
+
+//     queueVideoInsights(video._id.toString());
+//     res.status(201).json({ message: "File uploaded", video });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 export const uploadFile = async (req, res) => {
   try {
     const { title, description } = req.body;
@@ -34,6 +59,12 @@ export const uploadFile = async (req, res) => {
 
     if (!title || !req.file) {
       return res.status(400).json({ message: "Title & video file required" });
+    }
+
+    // ❗ check file size
+    if (req.file.size === 0) {
+      fs.unlinkSync(req.file.path); // delete bad file
+      return res.status(400).json({ message: "Corrupted upload" });
     }
 
     const video = await Video.create({
@@ -46,12 +77,14 @@ export const uploadFile = async (req, res) => {
     });
 
     queueVideoInsights(video._id.toString());
+
     res.status(201).json({ message: "File uploaded", video });
+
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
-
 export const myVideos = async (req, res) => {
   try {
     const videos = await Video.find({ uploadedBy: req.user.id }).sort({ createdAt: -1 });

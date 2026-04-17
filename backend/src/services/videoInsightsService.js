@@ -1,227 +1,203 @@
-import fs from "fs/promises";
+import { execFile } from "child_process";
+import fs from "fs";
 import path from "path";
 import Video from "../models/Video.js";
 import User from "../models/User.js";
 
-const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL || "https://api.openai.com/v1";
-const TRANSCRIPTION_MODEL = process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1";
-const SUMMARIZATION_MODEL = process.env.OPENAI_SUMMARIZATION_MODEL || "gpt-4o-mini";
+const DEFAULT_WHISPER_PYTHON =
+  "C:\\Users\\ASUS\\anaconda3\\envs\\whisper-clean\\python.exe";
 
-const parseMaybeJson = (content) => {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
+const WHISPER_PYTHON_PATH =
+  process.env.WHISPER_PYTHON_PATH || DEFAULT_WHISPER_PYTHON;
+
+const WHISPER_SCRIPT_PATH =
+  process.env.WHISPER_SCRIPT_PATH ||
+  path.join(process.cwd(), "python", "whisper_transcribe.py");
+
+const WHISPER_MODEL = process.env.WHISPER_MODEL || "small";
+
+const MIN_TRANSCRIPT_LENGTH = 20;
+
+const normalizeWhitespace = (value = "") => value.replace(/\s+/g, " ").trim();
+
+const collapseRepeatedWords = (value = "") => {
+  const words = normalizeWhitespace(value).split(" ");
+  const cleaned = [];
+
+  for (const word of words) {
+    const normalizedWord = word.toLowerCase();
+    const previousWord = cleaned[cleaned.length - 1]?.toLowerCase();
+
+    if (normalizedWord && normalizedWord === previousWord) {
+      continue;
+    }
+
+    cleaned.push(word);
   }
+
+  return cleaned.join(" ").trim();
 };
 
-const fallbackInsights = ({
-  title,
-  description,
-  transcript,
-  videoType,
-  targetLanguage,
-}) => {
-  const cleanTitle = (title || "Learning video").replace(/\.[^/.]+$/, "");
-  const cleanDescription = description || "Study the uploaded lesson with guided checkpoints.";
-  const words = transcript
-    .split(/\s+/)
-    .map((word) => word.trim())
-    .filter((word) => word.length > 4);
-  const focusTerms = [...new Set(words)].slice(0, 5);
-  const conceptLine =
-    focusTerms.length > 0 ? focusTerms.join(", ") : "the main concepts from the lesson";
+const collapseRepeatedPhrases = (value = "") => {
+  let text = normalizeWhitespace(value);
 
-  return {
-    translatedTranscript: transcript || "",
-    summary: `This lesson on ${cleanTitle} covers ${conceptLine} in ${targetLanguage}.`,
-    notes: [
-      `${cleanTitle} introduces the lesson goal and the key outcomes for the learner in ${targetLanguage}.`,
-      `Important concepts mentioned include ${conceptLine}.`,
-      transcript ? transcript.slice(0, 2800) : cleanDescription,
-      "Use the timestamps to revisit the sections that need more revision.",
-    ],
-    topics: [
+  text = text.replace(/\b(\w+(?:\s+\w+){0,2})\b(?:\s+\1\b){2,}/gi, "$1");
+
+  return text;
+};
+
+const cleanTranscriptText = (value = "") =>
+  collapseRepeatedWords(collapseRepeatedPhrases(value))
+    .replace(/\b(uh|umm|hmm)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const cleanSegments = (segments = []) =>
+  segments
+    .map((segment) => ({
+      ...segment,
+      text: cleanTranscriptText(segment?.text || ""),
+    }))
+    .filter((segment) => {
+      const text = segment.text || "";
+      const uniqueWords = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
+
+      return (
+        typeof segment.start !== "undefined" &&
+        text.length >= 8 &&
+        uniqueWords.size >= 2
+      );
+    });
+
+const extractKeywords = (transcript = "") =>
+  [...new Set(
+    transcript
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 5 && Number.isNaN(Number(word)))
+  )].slice(0, 6);
+
+const buildNotes = ({ title, transcript, keywords }) => {
+  const conceptLine =
+    keywords.length > 0 ? keywords.join(", ") : "the main concepts";
+
+  return [
+    `This video covers ${title || "the lesson"}.`,
+    `Focus on these concepts: ${conceptLine}.`,
+    transcript.slice(0, 240) || "Transcript is short, so review the full video carefully.",
+    "Use the timestamps to quickly jump back to important explanations.",
+  ];
+};
+
+const buildTopicsFromSegments = (segments = []) => {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return [
       {
         label: "Introduction",
         timestamp: 0,
-        summary: `Overview of ${cleanTitle} and the learning goals.`,
+        summary: "Opening section of the lesson.",
       },
-      {
-        label: "Main explanation",
-        timestamp: 60,
-        summary: "The lesson moves into the core explanation and examples.",
-      },
-      {
-        label: videoType === "link" ? "Wrap-up" : "Practice and recap",
-        timestamp: 180,
-        summary: "The final section reinforces the main learning outcomes.",
-      },
-    ],
-  };
-};
-
-const buildTranscriptPrompt = ({ title, description, transcript, segments, targetLanguage }) => `
-You are helping turn a video transcript into a study-friendly learning outline.
-Translate the final learner-facing output into ${targetLanguage}.
-
-Video title: ${title || "Untitled video"}
-Video description: ${description || "No description provided"}
-
-Transcript:
-${transcript}
-
-Segments with approximate timestamps:
-${JSON.stringify(
-  segments.map((segment) => ({
-    start: Math.max(0, Math.floor(segment.start || 0)),
-    end: Math.max(0, Math.floor(segment.end || 0)),
-    text: segment.text || "",
-  })),
-  null,
-  2
-)}
-
-Return valid JSON only in this shape:
-{
-  "translatedTranscript": "full translated transcript in ${targetLanguage}",
-  "summary": "2-3 sentence overall summary",
-  "notes": ["4-6 concise revision notes"],
-  "topics": [
-    {
-      "label": "short topic title",
-      "timestamp": 0,
-      "summary": "what this section covers"
-    }
-  ]
-}
-
-Rules:
-- Use the timestamps from the provided segments when possible.
-- Return 4 to 6 topics.
-- Each topic label must be short and study-friendly.
-- Notes, summary, topic titles, topic summaries, and translatedTranscript must all be in ${targetLanguage}.
-- Keep all timestamps as integer seconds.
-`;
-
-const transcribeLocalFile = async ({ filePath, mimeType = "video/mp4" }) => {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is missing");
+    ];
   }
 
-  const fileBuffer = await fs.readFile(filePath);
-  const formData = new FormData();
-  formData.append("model", TRANSCRIPTION_MODEL);
-  formData.append("response_format", "verbose_json");
-  formData.append(
-    "file",
-    new Blob([fileBuffer], { type: mimeType }),
-    path.basename(filePath)
+  const normalized = cleanSegments(segments);
+
+  const desiredTopicCount = Math.min(
+    5,
+    Math.max(3, Math.ceil(normalized.length / 4))
   );
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/audio/transcriptions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
+  const chunkSize = Math.max(1, Math.ceil(normalized.length / desiredTopicCount));
+  const topics = [];
 
-  const payload = await response.json();
+  for (let index = 0; index < normalized.length; index += chunkSize) {
+    const chunk = normalized.slice(index, index + chunkSize);
 
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || "Transcription request failed");
+    if (chunk.length === 0) continue;
+
+    const chunkText = cleanTranscriptText(
+      chunk.map((segment) => segment.text.trim()).join(" ")
+    );
+    const keywords = extractKeywords(chunkText);
+    const label =
+      keywords.length > 0
+        ? keywords
+            .slice(0, 2)
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" & ")
+        : `Topic ${topics.length + 1}`;
+
+    topics.push({
+      label,
+      timestamp: Math.max(0, Math.floor(Number(chunk[0].start) || 0)),
+      summary:
+        chunkText.slice(0, 140) ||
+        "Important explanation from this section of the lesson.",
+    });
   }
 
+  return topics;
+};
+
+const buildFallbackInsights = ({ title, transcript = "", segments = [] }) => {
+  const cleanedTranscript = cleanTranscriptText(transcript);
+  const keywords = extractKeywords(cleanedTranscript);
+  const conceptLine =
+    keywords.length > 0 ? keywords.join(", ") : "the main concepts";
+
   return {
-    transcript: payload.text || "",
-    segments: Array.isArray(payload.segments) ? payload.segments : [],
+    summary: `This video explains ${conceptLine}.`,
+    notes: buildNotes({ title, transcript: cleanedTranscript, keywords }),
+    topics: buildTopicsFromSegments(segments),
   };
 };
 
-const summarizeTranscript = async ({
-  title,
-  description,
-  transcript,
-  segments,
-  targetLanguage,
-}) => {
-  const apiKey = process.env.OPENAI_API_KEY;
+const buildAbsolutePath = (videoUrl) =>
+  path.join(process.cwd(), videoUrl.replace(/^\/+/, ""));
 
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is missing");
-  }
+const transcribeWithWhisper = (filePath) =>
+  new Promise((resolve, reject) => {
+    const args = [WHISPER_SCRIPT_PATH, filePath, WHISPER_MODEL];
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: SUMMARIZATION_MODEL,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You convert transcripts into structured study material. Always return valid JSON only.",
-        },
-        {
-          role: "user",
-          content: buildTranscriptPrompt({
-            title,
-            description,
-            transcript,
-            segments,
-            targetLanguage,
-          }),
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
+    console.log("Running Whisper with:");
+    console.log("python:", WHISPER_PYTHON_PATH);
+    console.log("script:", WHISPER_SCRIPT_PATH);
+    console.log("file:", filePath);
+    console.log("model:", WHISPER_MODEL);
+
+    execFile(
+      WHISPER_PYTHON_PATH,
+      args,
+      { maxBuffer: 1024 * 1024 * 50 },
+      (error, stdout, stderr) => {
+        if (stderr?.trim()) {
+          console.log("Whisper STDERR:", stderr);
+        }
+
+        if (error) {
+          return reject(
+            new Error(`Whisper execution failed: ${error.message}`)
+          );
+        }
+
+        try {
+          const parsed = JSON.parse(stdout);
+
+          resolve({
+            transcript: parsed.text || "",
+            segments: Array.isArray(parsed.segments) ? parsed.segments : [],
+          });
+        } catch {
+          reject(new Error("Whisper returned invalid JSON"));
+        }
+      }
+    );
   });
-
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || "Summarization request failed");
-  }
-
-  const content = payload?.choices?.[0]?.message?.content || "{}";
-  const parsed = parseMaybeJson(content);
-
-  if (!parsed) {
-    throw new Error("AI response was not valid JSON");
-  }
-
-  return {
-    translatedTranscript: parsed.translatedTranscript || "",
-    summary: parsed.summary || "",
-    notes: Array.isArray(parsed.notes) ? parsed.notes.filter(Boolean) : [],
-    topics: Array.isArray(parsed.topics)
-      ? parsed.topics
-          .filter((topic) => topic?.label)
-          .map((topic) => ({
-            label: topic.label,
-            timestamp: Math.max(0, Math.floor(Number(topic.timestamp) || 0)),
-            summary: topic.summary || "",
-          }))
-      : [],
-  };
-};
-
-const buildAbsoluteUploadPath = (videoUrl) =>
-  path.join(process.cwd(), "src", videoUrl.replace(/^\/+/, ""));
 
 export const processVideoInsights = async (videoId) => {
   const video = await Video.findById(videoId);
-
-  if (!video) {
-    return;
-  }
+  if (!video) return;
 
   video.insightsStatus = "processing";
   video.processingError = "";
@@ -232,68 +208,71 @@ export const processVideoInsights = async (videoId) => {
     const targetLanguage =
       video.learningLanguage || user?.preferredLanguage || "English";
 
+    video.learningLanguage = targetLanguage;
+
     if (video.videoType !== "file") {
-      const fallback = fallbackInsights({
+      const fallback = buildFallbackInsights({
         title: video.title,
-        description: video.description,
         transcript: "",
-        videoType: video.videoType,
-        targetLanguage,
+        segments: [],
       });
 
-      video.insightsStatus = "skipped";
-      video.insightsSummary = `Transcript generation is currently enabled for uploaded video files. Link-based videos use fallback notes in ${targetLanguage} for now.`;
-      video.learningLanguage = targetLanguage;
-      video.transcript = fallback.translatedTranscript;
+      video.originalTranscript = "";
+      video.transcript = "";
       video.notes = fallback.notes;
       video.topics = fallback.topics;
+      video.insightsSummary =
+        "Transcript generation for link videos is not built yet. File uploads are supported first.";
+      video.insightsStatus = "skipped";
       video.processedAt = new Date();
       await video.save();
       return;
     }
 
-    const filePath = buildAbsoluteUploadPath(video.videoUrl);
-    const { transcript, segments } = await transcribeLocalFile({ filePath });
-    const insights = transcript.trim()
-      ? await summarizeTranscript({
-          title: video.title,
-          description: video.description,
-          transcript,
-          segments,
-          targetLanguage,
-        })
-      : fallbackInsights({
-          title: video.title,
-          description: video.description,
-          transcript,
-          videoType: video.videoType,
-          targetLanguage,
-        });
+    const filePath = buildAbsolutePath(video.videoUrl);
 
-    video.learningLanguage = targetLanguage;
-    video.originalTranscript = transcript;
-    video.transcript = insights.translatedTranscript || transcript;
-    video.notes = insights.notes;
-    video.topics = insights.topics;
-    video.insightsSummary = insights.summary || "";
-    video.insightsStatus = "completed";
-    video.processedAt = new Date();
-    await video.save();
-  } catch (error) {
-    const missingApiKey = error.message === "OPENAI_API_KEY is missing";
-    const fallback = fallbackInsights({
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Uploaded file not found at ${filePath}`);
+    }
+
+    const stats = fs.statSync(filePath);
+    if (stats.size < 1000) {
+      throw new Error("Uploaded video is empty or corrupted");
+    }
+
+    if (!fs.existsSync(WHISPER_SCRIPT_PATH)) {
+      throw new Error(`Whisper script not found at ${WHISPER_SCRIPT_PATH}`);
+    }
+
+    const { transcript, segments } = await transcribeWithWhisper(filePath);
+    const cleanedTranscript = cleanTranscriptText(transcript);
+    const cleanedSegments = cleanSegments(segments);
+
+    if (!cleanedTranscript || cleanedTranscript.trim().length < MIN_TRANSCRIPT_LENGTH) {
+      throw new Error("Whisper returned an empty or too-short transcript");
+    }
+
+    const insights = buildFallbackInsights({
       title: video.title,
-      description: video.description,
-      transcript: video.transcript || "",
-      videoType: video.videoType,
-      targetLanguage: video.learningLanguage || "English",
+      transcript: cleanedTranscript,
+      segments: cleanedSegments,
     });
 
-    video.notes = fallback.notes;
-    video.topics = fallback.topics;
-    video.insightsSummary = fallback.summary;
-    video.insightsStatus = missingApiKey || !process.env.OPENAI_API_KEY ? "skipped" : "failed";
-    video.processingError = missingApiKey ? "" : error.message;
+    video.originalTranscript = transcript;
+    video.transcript = cleanedTranscript;
+    video.notes = insights.notes;
+    video.topics = insights.topics;
+    video.insightsSummary = insights.summary;
+    video.insightsStatus = "completed";
+    video.processingError = "";
+    video.processedAt = new Date();
+
+    await video.save();
+  } catch (error) {
+    console.log("Processing error:", error.message);
+
+    video.insightsStatus = "failed";
+    video.processingError = error.message;
     video.processedAt = new Date();
     await video.save();
   }
@@ -301,8 +280,8 @@ export const processVideoInsights = async (videoId) => {
 
 export const queueVideoInsights = (videoId) => {
   setTimeout(() => {
-    processVideoInsights(videoId).catch((error) => {
-      console.error("Video insights processing error:", error.message);
+    processVideoInsights(videoId).catch((err) => {
+      console.error("Queue error:", err.message);
     });
   }, 0);
 };

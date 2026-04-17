@@ -11,6 +11,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleContinue = async (e) => {
     e.preventDefault();
@@ -65,7 +66,7 @@ export default function Signup() {
           </div>
         </div>
 
-        <div className="w-full rounded-[28px] border border-white/80 bg-white/90 p-8 shadow-[0_22px_55px_rgba(148,163,184,0.18)] backdrop-blur">
+        <div className="w-full rounded-[26px] border border-white/80 bg-white/90 p-6 shadow-[0_22px_55px_rgba(148,163,184,0.18)] backdrop-blur sm:p-7">
           <h2 className="mb-4 text-[15px] font-semibold text-slate-800">
             Basic Information
           </h2>

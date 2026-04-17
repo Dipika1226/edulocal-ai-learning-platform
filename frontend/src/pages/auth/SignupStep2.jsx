@@ -114,7 +114,7 @@ export default function SignupStep2() {
           </div>
         </div>
 
-        <div className="w-full rounded-[28px] border border-white/80 bg-white/90 p-6 shadow-[0_22px_55px_rgba(148,163,184,0.18)] backdrop-blur sm:p-8">
+        <div className="w-full rounded-[26px] border border-white/80 bg-white/90 p-6 shadow-[0_22px_55px_rgba(148,163,184,0.18)] backdrop-blur sm:p-7">
           <h2 className="text-[15px] font-semibold text-slate-800">
             Choose Your Preferred Language
           </h2>
@@ -133,7 +133,7 @@ export default function SignupStep2() {
                     type="button"
                     onClick={() => setPreferredLanguage(language.value)}
                     className={[
-                      "rounded-lg border px-3 py-3 text-left transition",
+                      "rounded-xl border px-3 py-3 text-left transition",
                       isSelected
                         ? "border-purple-600 bg-purple-50 shadow-sm"
                         : "border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/40",
@@ -154,14 +154,14 @@ export default function SignupStep2() {
               <button
                 type="button"
                 onClick={() => navigate("/signup")}
-                className="rounded-lg border border-purple-500 px-4 py-3 text-[14px] font-medium text-purple-600 transition hover:bg-purple-50"
+                className="rounded-xl border border-purple-500 px-4 py-3 text-[14px] font-medium text-purple-600 transition hover:bg-purple-50"
               >
                 ← Back
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-lg bg-linear-to-r from-fuchsia-600 to-violet-600 px-4 py-3 text-[14px] font-medium text-white transition hover:shadow-lg disabled:opacity-60"
+                className="rounded-xl bg-linear-to-r from-fuchsia-600 to-violet-600 px-4 py-3 text-[14px] font-medium text-white transition hover:shadow-lg disabled:opacity-60"
               >
                 {loading ? "Creating..." : "✓ Create Account"}
               </button>

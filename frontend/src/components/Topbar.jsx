@@ -1,15 +1,8 @@
-import {
-  Bell,
-  ChevronDown,
-  LogOut,
-  Menu,
-  Settings,
-  SquareLibrary,
-} from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Settings, SquareLibrary } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function Topbar() {
+export default function Topbar({ onToggleSidebar }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const profileMenuRef = useRef(null);
@@ -77,6 +70,7 @@ export default function Topbar() {
       <div className="flex items-center gap-3">
         <button
           type="button"
+          onClick={onToggleSidebar}
           className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
         >
           <Menu size={18} />
