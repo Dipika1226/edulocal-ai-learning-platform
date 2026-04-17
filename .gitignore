@@ -4,3 +4,5 @@ node_modules/
 backend/src/uploads/
 backend/uploads/__pycache__/
 *.pyc
+backend/uploads/
+backend/src/uploads/
