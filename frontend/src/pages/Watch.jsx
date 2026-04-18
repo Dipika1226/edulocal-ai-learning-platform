@@ -126,6 +126,25 @@ export default function Watch() {
     fetchVideo();
   }, [id]);
 
+  // ── Track watch history for recommendations ──
+  useEffect(() => {
+    if (!id) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    fetch("http://localhost:5000/api/recommendations/watch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ videoId: id }),
+    }).catch(() => {
+      // Silently ignore – watch tracking should never block playback
+    });
+  }, [id]);
+
   useEffect(() => {
     if (!id) return;
     if (!["pending", "processing"].includes(video?.insightsStatus)) return;

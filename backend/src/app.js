@@ -4,6 +4,7 @@ import multer from "multer";
 import path from "path";
 import authRoutes from "./routes/authRoutes.js";
 import dubbingRoutes from "./routes/dubbingRoutes.js";
+import recommendationRoutes from "./routes/recommendationRoutes.js";
 import videoRoutes from "./routes/videoRoutes.js";
 const app = express();
 
@@ -16,6 +17,9 @@ app.use("/api/dubbings", dubbingRoutes);
 app.get("/", (req, res) => {
   res.send("EduLocal Backend Running");
 });
+
+// recommendation routes
+app.use("/api/recommendations", recommendationRoutes);
 
 // video routes
 app.use("/api/videos", videoRoutes);

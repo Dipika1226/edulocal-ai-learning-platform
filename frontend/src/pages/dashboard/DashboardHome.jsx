@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { getText } from "../../utils/translations";
+import RecommendationSection from "../../components/RecommendationSection";
 
 export default function DashboardHome() {
   const navigate = useNavigate();
@@ -27,6 +28,9 @@ export default function DashboardHome() {
           <p className="text-3xl font-bold text-purple-700 mt-2">5</p>
         </div>
       </div>
+
+      {/* AI-Powered Recommendations */}
+      <RecommendationSection />
     </div>
   );
 }
