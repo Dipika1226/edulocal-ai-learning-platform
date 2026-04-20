@@ -12,8 +12,8 @@ model = whisper.load_model(model_name)
 result = model.transcribe(
     video_path,
     temperature=0,
-    best_of=5,
-    beam_size=5,
+    best_of=1,
+    beam_size=1,
     condition_on_previous_text=False,
     compression_ratio_threshold=2.2,
     no_speech_threshold=0.45,

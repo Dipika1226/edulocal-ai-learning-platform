@@ -14,7 +14,7 @@ const WHISPER_SCRIPT_PATH =
   process.env.WHISPER_SCRIPT_PATH ||
   path.join(process.cwd(), "python", "whisper_transcribe.py");
 
-const WHISPER_MODEL = process.env.WHISPER_MODEL || "small";
+const WHISPER_MODEL = process.env.WHISPER_MODEL || "tiny";
 
 const MIN_TRANSCRIPT_LENGTH = 20;
 
@@ -51,6 +51,42 @@ const cleanTranscriptText = (value = "") =>
     .replace(/\b(uh|umm|hmm)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
+
+const downloadAudioFromUrl = (url) =>
+  new Promise((resolve, reject) => {
+    const tempDir = path.join(process.cwd(), "temp");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const outputTemplate = path.join(tempDir, `audio_${Date.now()}.%(ext)s`);
+    const outputPath = outputTemplate.replace("%(ext)s", "mp3");
+
+    // Use yt-dlp to download audio
+    execFile(
+      "yt-dlp",
+      [
+        "--extract-audio",
+        "--audio-format",
+        "mp3",
+        "--output",
+        outputTemplate,
+        "--no-playlist",
+        "--download-sections",
+        "*00:00:00-00:30:00",
+        "--quiet",
+        url,
+      ],
+      (error, stdout, stderr) => {
+        if (error) {
+          return reject(new Error(`yt-dlp failed: ${error.message}`));
+        }
+        if (!fs.existsSync(outputPath)) {
+          return reject(new Error("Downloaded audio file not found"));
+        }
+        resolve(outputPath);
+      }
+    );
+  });
 
 const cleanSegments = (segments = []) =>
   segments
@@ -169,7 +205,7 @@ const transcribeWithWhisper = (filePath) =>
     execFile(
       WHISPER_PYTHON_PATH,
       args,
-      { maxBuffer: 1024 * 1024 * 50 },
+      { maxBuffer: 1024 * 1024 * 50, timeout: 20 * 60 * 1000 }, // 20 minutes timeout
       (error, stdout, stderr) => {
         if (stderr?.trim()) {
           console.log("Whisper STDERR:", stderr);
@@ -211,21 +247,43 @@ export const processVideoInsights = async (videoId) => {
     video.learningLanguage = targetLanguage;
 
     if (video.videoType !== "file") {
-      const fallback = buildFallbackInsights({
-        title: video.title,
-        transcript: "",
-        segments: [],
-      });
+      // Download audio from URL
+      let audioPath = "";
 
-      video.originalTranscript = "";
-      video.transcript = "";
-      video.notes = fallback.notes;
-      video.topics = fallback.topics;
-      video.insightsSummary =
-        "Transcript generation for link videos is not built yet. File uploads are supported first.";
-      video.insightsStatus = "skipped";
-      video.processedAt = new Date();
-      await video.save();
+      try {
+        audioPath = await downloadAudioFromUrl(video.videoUrl);
+
+        // Transcribe the downloaded audio
+        const { transcript, segments } = await transcribeWithWhisper(audioPath);
+        const cleanedTranscript = cleanTranscriptText(transcript);
+        const cleanedSegments = cleanSegments(segments);
+
+        if (!cleanedTranscript || cleanedTranscript.trim().length < MIN_TRANSCRIPT_LENGTH) {
+          throw new Error("Whisper returned an empty or too-short transcript for link");
+        }
+
+        const insights = buildFallbackInsights({
+          title: video.title,
+          transcript: cleanedTranscript,
+          segments: cleanedSegments,
+        });
+
+        video.originalTranscript = transcript;
+        video.transcript = cleanedTranscript;
+        video.notes = insights.notes;
+        video.topics = insights.topics;
+        video.insightsSummary = insights.summary;
+        video.insightsStatus = "completed";
+        video.processingError = "";
+        video.processedAt = new Date();
+
+        await video.save();
+      } finally {
+        // Clean up temp file only when it exists
+        if (audioPath && fs.existsSync(audioPath)) {
+          fs.unlinkSync(audioPath);
+        }
+      }
       return;
     }
 

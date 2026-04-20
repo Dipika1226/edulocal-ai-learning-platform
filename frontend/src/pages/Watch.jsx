@@ -1,3 +1,5 @@
+import { getText } from "../utils/translations";
+import { apiRequest } from "../utils/api";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -35,12 +37,7 @@ export default function Watch() {
 
       setError("");
 
-      const res = await fetch(`http://localhost:5000/api/videos/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
+      const res = await apiRequest(`/videos/${id}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -112,7 +109,7 @@ export default function Watch() {
 
   const embedUrl = useMemo(
     () => getYoutubeEmbedUrl(video?.videoUrl || video?.link),
-    [video]
+    [video],
   );
   const source = useMemo(() => getVideoSource(video), [video]);
   const topics = video?.topics || [];
@@ -188,7 +185,9 @@ export default function Watch() {
             <button
               onClick={() => setShowDubbed(false)}
               className={`px-4 py-2 rounded ${
-                !showDubbed ? "bg-purple-600 text-white" : "bg-gray-300 text-black"
+                !showDubbed
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-300 text-black"
               }`}
             >
               Original
@@ -197,7 +196,9 @@ export default function Watch() {
             <button
               onClick={() => setShowDubbed(true)}
               className={`px-4 py-2 rounded ${
-                showDubbed ? "bg-green-600 text-white" : "bg-gray-300 text-black"
+                showDubbed
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-300 text-black"
               }`}
             >
               Dubbed
@@ -241,8 +242,8 @@ export default function Watch() {
                   {isProcessing
                     ? `AI is preparing timestamps, transcript, and notes in ${selectedLanguage}.`
                     : isSkipped
-                    ? `Fallback study material is available in ${selectedLanguage}.`
-                    : summary}
+                      ? `Fallback study material is available in ${selectedLanguage}.`
+                      : summary}
                 </p>
                 {isProcessing ? (
                   <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-purple-50 px-3 py-1.5 text-[12px] font-medium text-purple-700">
@@ -345,8 +346,8 @@ export default function Watch() {
               {isProcessing
                 ? "Transcript is currently being generated."
                 : transcript
-                ? `Transcript available in ${selectedLanguage}.`
-                : "No transcript available for this video yet."}
+                  ? `Transcript available in ${selectedLanguage}.`
+                  : "No transcript available for this video yet."}
             </p>
 
             <div className="mt-4 rounded-xl bg-slate-50 p-4 text-[13px] leading-6 text-slate-700 ring-1 ring-slate-200">
