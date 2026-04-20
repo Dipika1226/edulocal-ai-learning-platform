@@ -1,4 +1,3 @@
-import { getText } from "../utils/translations";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -15,71 +14,6 @@ export default function Watch() {
   const location = useLocation();
   const playerRef = useRef(null);
 
-  /*
-  const user = JSON.parse(localStorage.getItem("user")) || {};
-  const preferredLanguage = user?.preferredLanguage || "English";
-  const t = getText();
-
-  const [dubStatus, setDubStatus] = useState("not_created");
-  const [dubbedVideoUrl, setDubbedVideoUrl] = useState("");
-  const [showDubbed, setShowDubbed] = useState(false);
-
-  const getYoutubeEmbedLink = (link) => {
-    if (!link) return "";
-
-    if (link.includes("v=")) {
-      return `https://www.youtube.com/embed/${link.split("v=")[1]?.split("&")[0]}`;
-    }
-
-    if (link.includes("youtu.be/")) {
-      return `https://www.youtube.com/embed/${link.split("youtu.be/")[1]?.split("?")[0]}`;
-    }
-
-    return link;
-  };
-
-  useEffect(() => {
-    const fetchDubStatus = async () => {
-      if (!video?._id) return;
-
-      try {
-        const res = await fetch(
-          `http://localhost:5000/api/dubbings/${video._id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        if (data.dubbing) {
-          setDubStatus(data.dubbing.processingStatus || "not_created");
-          setDubbedVideoUrl(data.dubbing.dubbedVideoUrl || "");
-        } else {
-          setDubStatus("not_created");
-          setDubbedVideoUrl("");
-        }
-      } catch (err) {
-        console.log("Fetch dub error:", err);
-      }
-    };
-
-    fetchDubStatus();
-    const interval = setInterval(fetchDubStatus, 3000);
-
-    return () => clearInterval(interval);
-  }, [video]);
-
-  const handleCreateDub = async () => {
-    if (!video?._id) {
-      alert("Video ID not found.");
-      return;
-    }
-*/
   const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const preferredLanguage = savedUser?.preferredLanguage || "English";
 
@@ -87,6 +21,9 @@ export default function Watch() {
   const [loading, setLoading] = useState(Boolean(id && !location.state?.video));
   const [error, setError] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState(preferredLanguage);
+
+  // Dubbing UI only
+  const [showDubbed, setShowDubbed] = useState(false);
 
   const fetchVideo = async ({ silent = false } = {}) => {
     if (!id) return;
@@ -126,7 +63,7 @@ export default function Watch() {
     fetchVideo();
   }, [id]);
 
-  // ── Track watch history for recommendations ──
+  // Track watch history for recommendations
   useEffect(() => {
     if (!id) return;
 
@@ -140,9 +77,7 @@ export default function Watch() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ videoId: id }),
-    }).catch(() => {
-      // Silently ignore – watch tracking should never block playback
-    });
+    }).catch(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -177,7 +112,7 @@ export default function Watch() {
 
   const embedUrl = useMemo(
     () => getYoutubeEmbedUrl(video?.videoUrl || video?.link),
-    [video],
+    [video]
   );
   const source = useMemo(() => getVideoSource(video), [video]);
   const topics = video?.topics || [];
@@ -213,21 +148,6 @@ export default function Watch() {
 
   if (!video) {
     return (
-      /*<<<<<<< HEAD
-      <div className="p-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {t.videoNotFound}
-          </h2>
-          <p className="text-sm text-gray-500 mt-2">
-            {t.openVideoAgain}
-          </p>
-          <button
-            onClick={() => navigate("/dashboard/history")}
-            className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-          >
-            {t.goToHistory}
-          </button>*/
       <div className="mx-auto max-w-7xl p-6">
         <div className="rounded-[26px] bg-white p-10 text-center shadow-sm ring-1 ring-slate-200">
           <p className="text-[14px] text-slate-500">No video selected.</p>
@@ -236,106 +156,7 @@ export default function Watch() {
     );
   }
 
-  // const canShowDubbed = dubStatus === "completed" && !!dubbedVideoUrl;
-
   return (
-    /*
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="flex gap-3 mb-4">
-            <button
-              onClick={() => setShowDubbed(false)}
-              className={`px-4 py-2 rounded-md font-medium ${!showDubbed ? "bg-purple-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
-            >
-              {t.original}
-            </button>
-
-            <button
-              onClick={() => setShowDubbed(true)}
-              disabled={!canShowDubbed}
-              className={`px-4 py-2 rounded-md font-medium ${
-                showDubbed? "bg-green-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              } ${!canShowDubbed ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              {t.dubbed}
-            </button>
-          </div>
-
-          {!showDubbed ? (
-            video.type === "file" ? (
-              <video
-                src={video.url}
-                controls
-                className="w-full rounded-lg"
-              />
-            ) : (
-              <iframe
-                width="100%"
-                height="420"
-                src={getYoutubeEmbedLink(video.link)}
-                title="Video Player"
-                allowFullScreen
-                className="rounded-lg"
-              ></iframe>
-            )
-          ) : (
-            <video
-              src={`http://localhost:5000${dubbedVideoUrl}`}
-              controls
-              className="w-full rounded-lg"
-            />
-          )}
-
-          <h2 className="text-xl font-bold text-gray-800 mt-4">
-            {!showDubbed ? (video.title || t.originalVideo) : t.dubbedVideo}
-          </h2>
-
-          <p className="text-gray-500 text-sm mt-1">
-            {t.preferredLanguageLabel}:{" "}
-            <span className="font-medium text-violet-600">
-              {preferredLanguage}
-            </span>
-          </p>
-
-          <div className="mt-4 rounded-lg border border-violet-100 bg-violet-50 p-4">
-            <h3 className="font-semibold text-violet-700">
-              {t.dubbingTitle}
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {t.dubbingDescription}
-            </p>
-
-            {dubStatus === "not_created" && (
-              <button
-                onClick={handleCreateDub}
-                className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-              >
-                {t.createDub}
-              </button>
-            )}
-
-            {dubStatus === "pending" && (
-              <p className="mt-4 text-sm font-medium text-orange-600">
-                ⏳ {t.dubRequestCreated}
-              </p>
-            )}
-
-            {dubStatus === "processing" && (
-              <p className="mt-4 text-sm font-medium text-blue-600">
-                ⚙️ {t.dubProcessingText}
-              </p>
-            )}
-
-            {dubStatus === "completed" && (
-              <p className="mt-4 text-sm font-medium text-green-600">
-                ✅ {t.dubReady}
-              </p>
-            )}
-          </div>*/
     <div className="mx-auto max-w-[1500px] space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -359,29 +180,38 @@ export default function Watch() {
           Back to library
         </button>
       </div>
-      {/*</div><div className="bg-white rounded-xl shadow-sm p-4">
-        <h3 className="text-lg font-semibold text-gray-800">
-          {t.dubStatusTitle}
-        </h3>
-        <p className="text-sm mt-3 font-medium">
-          {dubStatus === "not_created" && (
-            <span className="text-gray-500">{t.noDubYet}</span>
-          )}
-          {dubStatus === "pending" && (
-            <span className="text-orange-600">{t.dubPending}</span>
-          )}
-          {dubStatus === "processing" && (
-            <span className="text-blue-600">{t.dubProcessing}</span>
-          )}
-          {dubStatus === "completed" && (
-            <span className="text-green-600">{t.dubCompleted}</span>
-          )}
-        </p>*/}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,0.8fr)]">
         <section className="space-y-6">
+          {/* Only this new small dubbing toggle block added */}
+          <div className="mb-2 flex gap-3">
+            <button
+              onClick={() => setShowDubbed(false)}
+              className={`px-4 py-2 rounded ${
+                !showDubbed ? "bg-purple-600 text-white" : "bg-gray-300 text-black"
+              }`}
+            >
+              Original
+            </button>
+
+            <button
+              onClick={() => setShowDubbed(true)}
+              className={`px-4 py-2 rounded ${
+                showDubbed ? "bg-green-600 text-white" : "bg-gray-300 text-black"
+              }`}
+            >
+              Dubbed
+            </button>
+          </div>
+
           <div className="overflow-hidden rounded-[26px] bg-slate-950 shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
-            {video.videoType === "link" && embedUrl ? (
+            {showDubbed ? (
+              <video
+                src="http://localhost:5000/uploads/demo.mp4"
+                controls
+                className="h-[280px] w-full bg-black object-contain sm:h-[390px] xl:h-[500px]"
+              />
+            ) : video.videoType === "link" && embedUrl ? (
               <iframe
                 src={embedUrl}
                 title={video.title || "video"}
@@ -411,8 +241,8 @@ export default function Watch() {
                   {isProcessing
                     ? `AI is preparing timestamps, transcript, and notes in ${selectedLanguage}.`
                     : isSkipped
-                      ? `Fallback study material is available in ${selectedLanguage}.`
-                      : summary}
+                    ? `Fallback study material is available in ${selectedLanguage}.`
+                    : summary}
                 </p>
                 {isProcessing ? (
                   <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-purple-50 px-3 py-1.5 text-[12px] font-medium text-purple-700">
@@ -515,8 +345,8 @@ export default function Watch() {
               {isProcessing
                 ? "Transcript is currently being generated."
                 : transcript
-                  ? `Transcript available in ${selectedLanguage}.`
-                  : "No transcript available for this video yet."}
+                ? `Transcript available in ${selectedLanguage}.`
+                : "No transcript available for this video yet."}
             </p>
 
             <div className="mt-4 rounded-xl bg-slate-50 p-4 text-[13px] leading-6 text-slate-700 ring-1 ring-slate-200">
