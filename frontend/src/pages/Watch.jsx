@@ -1,7 +1,6 @@
-import { getText } from "../utils/translations";
-import { apiRequest } from "../utils/api";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { apiRequest } from "../utils/api";
 import {
   formatTimestamp,
   getVideoSource,
@@ -26,6 +25,9 @@ export default function Watch() {
 
   // Dubbing UI only
   const [showDubbed, setShowDubbed] = useState(false);
+  
+  // 🔥 for clickable timestamps in YouTube/link videos
+  const [currentEmbedUrl, setCurrentEmbedUrl] = useState("");
 
   const fetchVideo = async ({ silent = false } = {}) => {
     if (!id) return;
@@ -45,7 +47,9 @@ export default function Watch() {
       }
 
       setVideo(data.video);
-      setSelectedLanguage(data.video?.learningLanguage || preferredLanguage);
+      if (data.video?.learningLanguage) {
+      setSelectedLanguage(data.video.learningLanguage);
+}
     } catch (err) {
       setError(err.message || "Failed to load video");
     } finally {
@@ -59,6 +63,11 @@ export default function Watch() {
     if (!id) return;
     fetchVideo();
   }, [id]);
+
+  // reset embed url when video changes
+  useEffect(() => {
+    setCurrentEmbedUrl("");
+  }, [video?.videoUrl, video?.link]);
 
   // Track watch history for recommendations
   useEffect(() => {
@@ -89,11 +98,25 @@ export default function Watch() {
   }, [id, video?.insightsStatus]);
 
   const jumpToTopic = (timestamp) => {
+    const time = Number(timestamp) || 0;
+
+    // 🔥 Link video (YouTube iframe)
+    if (video?.videoType === "link" && (currentEmbedUrl || embedUrl)) {
+      try {
+        const url = new URL(currentEmbedUrl || embedUrl);
+        url.searchParams.set("start", String(time));
+        url.searchParams.set("autoplay", "1");
+        setCurrentEmbedUrl(url.toString());
+      } catch (err) {
+        console.log("Failed to jump link video:", err);
+      }
+      return;
+    }
+
+    // Uploaded/local file video
     const videoEl = playerRef.current;
 
     if (!videoEl) return;
-
-    const time = Number(timestamp) || 0;
 
     if (videoEl.readyState < 1) {
       videoEl.onloadedmetadata = () => {
@@ -180,7 +203,6 @@ export default function Watch() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,0.8fr)]">
         <section className="space-y-6">
-          {/* Only this new small dubbing toggle block added */}
           <div className="mb-2 flex gap-3">
             <button
               onClick={() => setShowDubbed(false)}
@@ -214,7 +236,7 @@ export default function Watch() {
               />
             ) : video.videoType === "link" && embedUrl ? (
               <iframe
-                src={embedUrl}
+                src={currentEmbedUrl || embedUrl}
                 title={video.title || "video"}
                 allowFullScreen
                 className="h-[280px] w-full sm:h-[390px] xl:h-[500px]"
@@ -242,8 +264,8 @@ export default function Watch() {
                   {isProcessing
                     ? `AI is preparing timestamps, transcript, and notes in ${selectedLanguage}.`
                     : isSkipped
-                      ? `Fallback study material is available in ${selectedLanguage}.`
-                      : summary}
+                    ? `Fallback study material is available in ${selectedLanguage}.`
+                    : summary}
                 </p>
                 {isProcessing ? (
                   <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-purple-50 px-3 py-1.5 text-[12px] font-medium text-purple-700">
@@ -270,7 +292,28 @@ export default function Watch() {
                     <button
                       key={lang}
                       type="button"
-                      onClick={() => setSelectedLanguage(lang)}
+                      onClick={async () => {setSelectedLanguage(lang);
+
+  try {
+    const token = localStorage.getItem("token");
+
+    await fetch(`http://localhost:5000/api/videos/${id}/process`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ language: lang }),
+    });
+
+    setVideo((prev) => ({
+      ...prev,
+      insightsStatus: "pending",
+    }));
+  } catch (err) {
+    console.log("Language update failed", err);
+  }
+}}
                       className={`rounded-full px-4 py-2 text-[13px] font-medium transition ${
                         isActive
                           ? "bg-purple-600 text-white shadow-sm"
@@ -307,8 +350,7 @@ export default function Watch() {
                     key={`${topic.label}-${topic.timestamp}-${index}`}
                     type="button"
                     onClick={() => jumpToTopic(topic.timestamp)}
-                    disabled={video.videoType === "link" && Boolean(embedUrl)}
-                    className="flex w-full items-start gap-4 rounded-xl border border-slate-200 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:bg-white"
+                    className="flex w-full items-start gap-4 rounded-xl border border-slate-200 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50"
                   >
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
                       {formatTimestamp(topic.timestamp)}
@@ -332,8 +374,7 @@ export default function Watch() {
 
             {video.videoType === "link" && embedUrl ? (
               <p className="mt-4 text-[12px] text-slate-500">
-                Clickable timestamp jumping works for uploaded files. Link-based
-                embeds still show the chapter outline.
+                Click a topic to reopen the embedded lesson from that timestamp.
               </p>
             ) : null}
           </div>
@@ -346,8 +387,8 @@ export default function Watch() {
               {isProcessing
                 ? "Transcript is currently being generated."
                 : transcript
-                  ? `Transcript available in ${selectedLanguage}.`
-                  : "No transcript available for this video yet."}
+                ? `Transcript available in ${selectedLanguage}.`
+                : "No transcript available for this video yet."}
             </p>
 
             <div className="mt-4 rounded-xl bg-slate-50 p-4 text-[13px] leading-6 text-slate-700 ring-1 ring-slate-200">

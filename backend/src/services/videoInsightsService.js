@@ -2,91 +2,36 @@ import { execFile } from "child_process";
 import fs from "fs";
 import path from "path";
 import Video from "../models/Video.js";
-import User from "../models/User.js";
 
-const DEFAULT_WHISPER_PYTHON =
-  "C:\\Users\\ASUS\\anaconda3\\envs\\whisper-clean\\python.exe";
+/* 🔥 ENV BASED CONFIG (NO HARDCODE) */
+const getWhisperConfig = () => {
+  const pythonPath =
+    process.env.WHISPER_PYTHON_PATH ||
+    path.join(process.cwd(), "venv", "Scripts", "python.exe");
 
-const WHISPER_PYTHON_PATH =
-  process.env.WHISPER_PYTHON_PATH || DEFAULT_WHISPER_PYTHON;
+  const scriptPath =
+    process.env.WHISPER_SCRIPT_PATH ||
+    path.join(process.cwd(), "python", "whisper_transcribe.py");
 
-const WHISPER_SCRIPT_PATH =
-  process.env.WHISPER_SCRIPT_PATH ||
-  path.join(process.cwd(), "python", "whisper_transcribe.py");
+  const model = process.env.WHISPER_MODEL || "tiny";
 
-const WHISPER_MODEL = process.env.WHISPER_MODEL || "tiny";
-
-const MIN_TRANSCRIPT_LENGTH = 20;
-
-const normalizeWhitespace = (value = "") => value.replace(/\s+/g, " ").trim();
-
-const collapseRepeatedWords = (value = "") => {
-  const words = normalizeWhitespace(value).split(" ");
-  const cleaned = [];
-
-  for (const word of words) {
-    const normalizedWord = word.toLowerCase();
-    const previousWord = cleaned[cleaned.length - 1]?.toLowerCase();
-
-    if (normalizedWord && normalizedWord === previousWord) {
-      continue;
-    }
-
-    cleaned.push(word);
-  }
-
-  return cleaned.join(" ").trim();
+  return { pythonPath, scriptPath, model };
 };
 
-const collapseRepeatedPhrases = (value = "") => {
-  let text = normalizeWhitespace(value);
+const MIN_TRANSCRIPT_LENGTH = 5;
 
-  text = text.replace(/\b(\w+(?:\s+\w+){0,2})\b(?:\s+\1\b){2,}/gi, "$1");
+/* ---------------- CLEANING ---------------- */
 
-  return text;
-};
-
-const cleanTranscriptText = (value = "") =>
-  collapseRepeatedWords(collapseRepeatedPhrases(value))
+const cleanTranscriptText = (text = "") =>
+  text
     .replace(/\b(uh|umm|hmm)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
-const downloadAudioFromUrl = (url) =>
-  new Promise((resolve, reject) => {
-    const tempDir = path.join(process.cwd(), "temp");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const outputTemplate = path.join(tempDir, `audio_${Date.now()}.%(ext)s`);
-    const outputPath = outputTemplate.replace("%(ext)s", "mp3");
+const extractKeywords = (text = "") =>
+  [...new Set(text.toLowerCase().split(/\s+/).filter((w) => w.length > 5))].slice(0, 6);
 
-    // Use yt-dlp to download audio
-    execFile(
-      "yt-dlp",
-      [
-        "--extract-audio",
-        "--audio-format",
-        "mp3",
-        "--output",
-        outputTemplate,
-        "--no-playlist",
-        "--download-sections",
-        "*00:00:00-00:30:00",
-        "--quiet",
-        url,
-      ],
-      (error, stdout, stderr) => {
-        if (error) {
-          return reject(new Error(`yt-dlp failed: ${error.message}`));
-        }
-        if (!fs.existsSync(outputPath)) {
-          return reject(new Error("Downloaded audio file not found"));
-        }
-        resolve(outputPath);
-      }
-    );
-  });
+/* ---------------- TOPICS / TIMESTAMPS ---------------- */
 
 const cleanSegments = (segments = []) =>
   segments
@@ -96,35 +41,8 @@ const cleanSegments = (segments = []) =>
     }))
     .filter((segment) => {
       const text = segment.text || "";
-      const uniqueWords = new Set(text.toLowerCase().split(/\s+/).filter(Boolean));
-
-      return (
-        typeof segment.start !== "undefined" &&
-        text.length >= 8 &&
-        uniqueWords.size >= 2
-      );
+      return typeof segment.start !== "undefined" && text.length >= 8;
     });
-
-const extractKeywords = (transcript = "") =>
-  [...new Set(
-    transcript
-      .toLowerCase()
-      .replace(/[^\w\s]/g, " ")
-      .split(/\s+/)
-      .filter((word) => word.length > 5 && Number.isNaN(Number(word)))
-  )].slice(0, 6);
-
-const buildNotes = ({ title, transcript, keywords }) => {
-  const conceptLine =
-    keywords.length > 0 ? keywords.join(", ") : "the main concepts";
-
-  return [
-    `This video covers ${title || "the lesson"}.`,
-    `Focus on these concepts: ${conceptLine}.`,
-    transcript.slice(0, 240) || "Transcript is short, so review the full video carefully.",
-    "Use the timestamps to quickly jump back to important explanations.",
-  ];
-};
 
 const buildTopicsFromSegments = (segments = []) => {
   if (!Array.isArray(segments) || segments.length === 0) {
@@ -138,6 +56,16 @@ const buildTopicsFromSegments = (segments = []) => {
   }
 
   const normalized = cleanSegments(segments);
+
+  if (normalized.length === 0) {
+    return [
+      {
+        label: "Introduction",
+        timestamp: 0,
+        summary: "Opening section of the lesson.",
+      },
+    ];
+  }
 
   const desiredTopicCount = Math.min(
     5,
@@ -153,9 +81,11 @@ const buildTopicsFromSegments = (segments = []) => {
     if (chunk.length === 0) continue;
 
     const chunkText = cleanTranscriptText(
-      chunk.map((segment) => segment.text.trim()).join(" ")
+      chunk.map((segment) => segment.text).join(" ")
     );
+
     const keywords = extractKeywords(chunkText);
+
     const label =
       keywords.length > 0
         ? keywords
@@ -176,63 +106,94 @@ const buildTopicsFromSegments = (segments = []) => {
   return topics;
 };
 
-const buildFallbackInsights = ({ title, transcript = "", segments = [] }) => {
-  const cleanedTranscript = cleanTranscriptText(transcript);
-  const keywords = extractKeywords(cleanedTranscript);
-  const conceptLine =
-    keywords.length > 0 ? keywords.join(", ") : "the main concepts";
+/* ---------------- YT-DLP DOWNLOAD ---------------- */
 
-  return {
-    summary: `This video explains ${conceptLine}.`,
-    notes: buildNotes({ title, transcript: cleanedTranscript, keywords }),
-    topics: buildTopicsFromSegments(segments),
-  };
-};
+const downloadAudioFromUrl = (url) =>
+  new Promise((resolve, reject) => {
+    const tempDir = path.join(process.cwd(), "temp");
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-const buildAbsolutePath = (videoUrl) =>
-  path.join(process.cwd(), videoUrl.replace(/^\/+/, ""));
+    const outputTemplate = path.join(tempDir, `audio_${Date.now()}.%(ext)s`);
+    const outputPath = outputTemplate.replace("%(ext)s", "mp3");
+
+    let cleanUrl = url;
+    try {
+      const parsed = new URL(url);
+      const v = parsed.searchParams.get("v");
+      if (v) cleanUrl = `https://www.youtube.com/watch?v=${v}`;
+    } catch {}
+
+    execFile(
+      "yt-dlp",
+      [
+        "--js-runtimes",
+        "node",
+        "--extract-audio",
+        "--audio-format",
+        "mp3",
+        "--output",
+        outputTemplate,
+        "--no-playlist",
+        "--quiet",
+        cleanUrl,
+      ],
+      (error, stdout, stderr) => {
+        if (error) {
+          console.log("yt-dlp error:", stderr || error.message);
+          return reject(new Error("yt-dlp failed"));
+        }
+
+        if (!fs.existsSync(outputPath)) {
+          return reject(new Error("Audio not found"));
+        }
+
+        resolve(outputPath);
+      }
+    );
+  });
+
+/* ---------------- WHISPER ---------------- */
 
 const transcribeWithWhisper = (filePath) =>
   new Promise((resolve, reject) => {
-    const args = [WHISPER_SCRIPT_PATH, filePath, WHISPER_MODEL];
+    const { pythonPath, scriptPath, model } = getWhisperConfig();
 
     console.log("Running Whisper with:");
-    console.log("python:", WHISPER_PYTHON_PATH);
-    console.log("script:", WHISPER_SCRIPT_PATH);
+    console.log("python:", pythonPath);
+    console.log("script:", scriptPath);
     console.log("file:", filePath);
-    console.log("model:", WHISPER_MODEL);
+    console.log("model:", model);
 
     execFile(
-      WHISPER_PYTHON_PATH,
-      args,
-      { maxBuffer: 1024 * 1024 * 50, timeout: 20 * 60 * 1000 }, // 20 minutes timeout
+      pythonPath,
+      [scriptPath, filePath, model],
+      { maxBuffer: 1024 * 1024 * 50, timeout: 20 * 60 * 1000 },
       (error, stdout, stderr) => {
         if (stderr?.trim()) {
           console.log("Whisper STDERR:", stderr);
         }
 
-        if (error) {
-          return reject(
-            new Error(`Whisper execution failed: ${error.message}`)
-          );
-        }
+        if (error) return reject(error);
 
         try {
           const parsed = JSON.parse(stdout);
-
           resolve({
             transcript: parsed.text || "",
             segments: Array.isArray(parsed.segments) ? parsed.segments : [],
           });
         } catch {
-          reject(new Error("Whisper returned invalid JSON"));
+          reject(new Error("Invalid Whisper output"));
         }
       }
     );
   });
 
+/* ---------------- MAIN PROCESS ---------------- */
+
 export const processVideoInsights = async (videoId) => {
   const video = await Video.findById(videoId);
+  const targetLanguage = video.learningLanguage || "English";
+  console.log("Processing in language:", targetLanguage);
   if (!video) return;
 
   video.insightsStatus = "processing";
@@ -240,106 +201,51 @@ export const processVideoInsights = async (videoId) => {
   await video.save();
 
   try {
-    const user = await User.findById(video.uploadedBy).select("preferredLanguage");
-    const targetLanguage =
-      video.learningLanguage || user?.preferredLanguage || "English";
+    let filePath;
 
-    video.learningLanguage = targetLanguage;
-
-    if (video.videoType !== "file") {
-      // Download audio from URL
-      let audioPath = "";
-
-      try {
-        audioPath = await downloadAudioFromUrl(video.videoUrl);
-
-        // Transcribe the downloaded audio
-        const { transcript, segments } = await transcribeWithWhisper(audioPath);
-        const cleanedTranscript = cleanTranscriptText(transcript);
-        const cleanedSegments = cleanSegments(segments);
-
-        if (!cleanedTranscript || cleanedTranscript.trim().length < MIN_TRANSCRIPT_LENGTH) {
-          throw new Error("Whisper returned an empty or too-short transcript for link");
-        }
-
-        const insights = buildFallbackInsights({
-          title: video.title,
-          transcript: cleanedTranscript,
-          segments: cleanedSegments,
-        });
-
-        video.originalTranscript = transcript;
-        video.transcript = cleanedTranscript;
-        video.notes = insights.notes;
-        video.topics = insights.topics;
-        video.insightsSummary = insights.summary;
-        video.insightsStatus = "completed";
-        video.processingError = "";
-        video.processedAt = new Date();
-
-        await video.save();
-      } finally {
-        // Clean up temp file only when it exists
-        if (audioPath && fs.existsSync(audioPath)) {
-          fs.unlinkSync(audioPath);
-        }
-      }
-      return;
-    }
-
-    const filePath = buildAbsolutePath(video.videoUrl);
-
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Uploaded file not found at ${filePath}`);
-    }
-
-    const stats = fs.statSync(filePath);
-    if (stats.size < 1000) {
-      throw new Error("Uploaded video is empty or corrupted");
-    }
-
-    if (!fs.existsSync(WHISPER_SCRIPT_PATH)) {
-      throw new Error(`Whisper script not found at ${WHISPER_SCRIPT_PATH}`);
+    if (video.videoType === "file") {
+      filePath = path.join(process.cwd(), video.videoUrl.replace(/^\/+/, ""));
+    } else {
+      filePath = await downloadAudioFromUrl(video.videoUrl);
     }
 
     const { transcript, segments } = await transcribeWithWhisper(filePath);
-    const cleanedTranscript = cleanTranscriptText(transcript);
-    const cleanedSegments = cleanSegments(segments);
+    const clean = cleanTranscriptText(transcript);
 
-    if (!cleanedTranscript || cleanedTranscript.trim().length < MIN_TRANSCRIPT_LENGTH) {
-      throw new Error("Whisper returned an empty or too-short transcript");
+    if (!clean || clean.length < MIN_TRANSCRIPT_LENGTH) {
+      throw new Error("Transcript too short");
     }
 
-    const insights = buildFallbackInsights({
-      title: video.title,
-      transcript: cleanedTranscript,
-      segments: cleanedSegments,
-    });
+    const keywords = extractKeywords(clean);
+    const topics = buildTopicsFromSegments(segments);
 
-    video.originalTranscript = transcript;
-    video.transcript = cleanedTranscript;
-    video.notes = insights.notes;
-    video.topics = insights.topics;
-    video.insightsSummary = insights.summary;
+    console.log("Generated topics:", topics);
+    console.log("Transcript segments count:", segments?.length || 0);
+
+    video.transcript = clean;
+    video.notes = [
+  `Language: ${targetLanguage}`,
+  `Concepts: ${keywords.join(", ")}`,
+  clean.slice(0, 200),
+];
+    video.topics = topics;
+    video.insightsSummary = `(${targetLanguage}) This video explains ${keywords.join(", ")}`;
     video.insightsStatus = "completed";
     video.processingError = "";
-    video.processedAt = new Date();
 
     await video.save();
-  } catch (error) {
-    console.log("Processing error:", error.message);
 
+    if (video.videoType !== "file" && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (err) {
+    console.log("Processing error:", err.message);
     video.insightsStatus = "failed";
-    video.processingError = error.message;
-    video.processedAt = new Date();
+    video.processingError = err.message;
     await video.save();
   }
 };
 
 export const queueVideoInsights = (videoId) => {
-  setTimeout(() => {
-    processVideoInsights(videoId).catch((err) => {
-      console.error("Queue error:", err.message);
-    });
-  }, 0);
+  setTimeout(() => processVideoInsights(videoId), 0);
 };
