@@ -1,7 +1,7 @@
-import { getText } from "../utils/translations";
-import { apiRequest } from "../utils/api";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { getText } from "../utils/translations";
+import { apiRequest } from "../utils/api";
 import {
   formatTimestamp,
   getVideoSource,
@@ -25,9 +25,8 @@ export default function Watch() {
   const [error, setError] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState(preferredLanguage);
   const [languageSaving, setLanguageSaving] = useState(false);
-
-  // Dubbing UI only
   const [showDubbed, setShowDubbed] = useState(false);
+  const [currentEmbedUrl, setCurrentEmbedUrl] = useState("");
 
   const fetchVideo = async ({ silent = false } = {}) => {
     if (!id) return;
@@ -47,7 +46,9 @@ export default function Watch() {
       }
 
       setVideo(data.video);
-      setSelectedLanguage(data.video?.learningLanguage || preferredLanguage);
+      if (data.video?.learningLanguage) {
+        setSelectedLanguage(data.video.learningLanguage);
+      }
     } catch (err) {
       setError(err.message || "Failed to load video");
     } finally {
@@ -87,7 +88,10 @@ export default function Watch() {
     fetchVideo();
   }, [id]);
 
-  // Track watch history for recommendations
+  useEffect(() => {
+    setCurrentEmbedUrl("");
+  }, [video?.videoUrl, video?.link]);
+
   useEffect(() => {
     if (!id) return;
 
@@ -116,11 +120,22 @@ export default function Watch() {
   }, [id, video?.insightsStatus]);
 
   const jumpToTopic = (timestamp) => {
-    const videoEl = playerRef.current;
-
-    if (!videoEl) return;
-
     const time = Number(timestamp) || 0;
+
+    if (video?.videoType === "link" && (currentEmbedUrl || embedUrl)) {
+      try {
+        const url = new URL(currentEmbedUrl || embedUrl);
+        url.searchParams.set("start", String(time));
+        url.searchParams.set("autoplay", "1");
+        setCurrentEmbedUrl(url.toString());
+      } catch (err) {
+        console.log("Failed to jump link video:", err);
+      }
+      return;
+    }
+
+    const videoEl = playerRef.current;
+    if (!videoEl) return;
 
     if (videoEl.readyState < 1) {
       videoEl.onloadedmetadata = () => {
@@ -136,7 +151,7 @@ export default function Watch() {
 
   const embedUrl = useMemo(
     () => getYoutubeEmbedUrl(video?.videoUrl || video?.link),
-    [video],
+    [video]
   );
   const source = useMemo(() => getVideoSource(video), [video]);
   const topics = video?.topics || [];
@@ -207,7 +222,6 @@ export default function Watch() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,0.8fr)]">
         <section className="space-y-6">
-          {/* Only this new small dubbing toggle block added */}
           <div className="mb-2 flex gap-3">
             <button
               onClick={() => setShowDubbed(false)}
@@ -232,7 +246,7 @@ export default function Watch() {
           <div className="overflow-hidden rounded-[26px] bg-slate-950 shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
             {video.videoType === "link" && embedUrl ? (
               <iframe
-                src={embedUrl}
+                src={currentEmbedUrl || embedUrl}
                 title={video.title || "video"}
                 allowFullScreen
                 className="h-[280px] w-full sm:h-[390px] xl:h-[500px]"
@@ -334,8 +348,7 @@ export default function Watch() {
                     key={`${topic.label}-${topic.timestamp}-${index}`}
                     type="button"
                     onClick={() => jumpToTopic(topic.timestamp)}
-                    disabled={video.videoType === "link" && Boolean(embedUrl)}
-                    className="flex w-full items-start gap-4 rounded-xl border border-slate-200 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:bg-white"
+                    className="flex w-full items-start gap-4 rounded-xl border border-slate-200 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50"
                   >
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
                       {formatTimestamp(topic.timestamp)}
@@ -359,8 +372,7 @@ export default function Watch() {
 
             {video.videoType === "link" && embedUrl ? (
               <p className="mt-4 text-[12px] text-slate-500">
-                Clickable timestamp jumping works for uploaded files. Link-based
-                embeds still show the chapter outline.
+                Click a topic to reopen the embedded lesson from that timestamp.
               </p>
             ) : null}
           </div>

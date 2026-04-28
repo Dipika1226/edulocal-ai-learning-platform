@@ -9,3 +9,7 @@ backend/src/uploads/
 backend/temp/
 backend/temp/
 backend/temp/
+backend/venv/
+venv/
+.vscode/
+backend/dubbing.py

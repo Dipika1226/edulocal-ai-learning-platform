@@ -1,10 +1,9 @@
 import fs from "fs";
-import Video from "../models/Video.js";
 import User from "../models/User.js";
+import Video from "../models/Video.js";
 import { queueVideoInsights } from "../services/videoInsightsService.js";
 
-
-// 🔹 Upload Video Link
+// Upload video link
 export const uploadLink = async (req, res) => {
   try {
     const { title, description, videoUrl, isPublic } = req.body;
@@ -24,41 +23,19 @@ export const uploadLink = async (req, res) => {
       isPublic: isPublic === true || isPublic === "true",
     });
 
-
     queueVideoInsights(video._id.toString());
-    res.status(201).json({ message: "Link uploaded", video });
+
+    res.status(201).json({
+      message: "Link uploaded",
+      video,
+    });
   } catch (error) {
     console.log("Upload link error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// 🔹 Upload Video File
-
-// export const uploadFile = async (req, res) => {
-//   try {
-//     const { title, description } = req.body;
-//     const user = await User.findById(req.user.id).select("preferredLanguage");
-
-//     if (!title || !req.file) {
-//       return res.status(400).json({ message: "Title & video file required" });
-//     }
-
-//     const video = await Video.create({
-//       title,
-//       description,
-//       videoType: "file",
-//       videoUrl: `/uploads/${req.file.filename}`,
-//       learningLanguage: user?.preferredLanguage || "English",
-//       uploadedBy: req.user.id,
-//     });
-
-//     queueVideoInsights(video._id.toString());
-//     res.status(201).json({ message: "File uploaded", video });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
+// Upload video file
 export const uploadFile = async (req, res) => {
   try {
     const { title, description, isPublic } = req.body;
@@ -68,9 +45,8 @@ export const uploadFile = async (req, res) => {
       return res.status(400).json({ message: "Title & video file required" });
     }
 
-    // ❗ check file size
     if (req.file.size === 0) {
-      fs.unlinkSync(req.file.path); // delete bad file
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ message: "Corrupted upload" });
     }
 
@@ -84,17 +60,19 @@ export const uploadFile = async (req, res) => {
       isPublic: isPublic === true || isPublic === "true",
     });
 
-    // 🔹 Get My Videos (private + public of logged user)
     queueVideoInsights(video._id.toString());
 
-    res.status(201).json({ message: "File uploaded", video });
-
+    res.status(201).json({
+      message: "File uploaded",
+      video,
+    });
   } catch (error) {
-    console.log(error);
+    console.log("Upload file error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+// Get my videos
 export const myVideos = async (req, res) => {
   try {
     const videos = await Video.find({
@@ -111,7 +89,7 @@ export const myVideos = async (req, res) => {
   }
 };
 
-// 🔹 Get Public Videos (for dashboard/recommendation)
+// Get public videos
 export const getPublicVideos = async (req, res) => {
   try {
     const videos = await Video.find({ isPublic: true }).sort({
@@ -125,8 +103,7 @@ export const getPublicVideos = async (req, res) => {
   }
 };
 
-
-// 🔹 Delete Video
+// Get video by ID
 export const getVideoById = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
@@ -141,10 +118,12 @@ export const getVideoById = async (req, res) => {
 
     res.json({ video });
   } catch (error) {
+    console.log("Get video by id error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+// Reprocess video insights
 export const reprocessVideoInsights = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
@@ -157,6 +136,12 @@ export const reprocessVideoInsights = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
+    const { language } = req.body;
+
+    if (language) {
+      video.learningLanguage = language;
+    }
+
     video.insightsStatus = "pending";
     video.processingError = "";
     await video.save();
@@ -165,14 +150,15 @@ export const reprocessVideoInsights = async (req, res) => {
 
     res.json({ message: "Video processing restarted", video });
   } catch (error) {
+    console.log("Reprocess error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
 export const updateVideoLearningLanguage = async (req, res) => {
   try {
-    const video = await Video.findById(req.params.id);
     const { learningLanguage } = req.body;
+    const video = await Video.findById(req.params.id);
 
     if (!video) {
       return res.status(404).json({ message: "Video not found" });
@@ -213,13 +199,17 @@ export const updateVideoLearningLanguage = async (req, res) => {
       video,
     });
   } catch (error) {
+    console.log("updateVideoLearningLanguage error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+export const updateVideoLanguage = updateVideoLearningLanguage;
+
+// Delete video
 export const deleteVideo = async (req, res) => {
   try {
-    console.log("Delete API hit 🔥");
+    console.log("Delete API hit");
     console.log("User ID:", req.user.id);
     console.log("Video ID:", req.params.id);
 
@@ -235,7 +225,7 @@ export const deleteVideo = async (req, res) => {
 
     await video.deleteOne();
 
-    console.log("Deleted successfully ✅");
+    console.log("Deleted successfully");
     res.json({ message: "Video deleted successfully" });
   } catch (error) {
     console.log("Delete error:", error);
