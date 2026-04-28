@@ -169,6 +169,54 @@ export const reprocessVideoInsights = async (req, res) => {
   }
 };
 
+export const updateVideoLearningLanguage = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    const { learningLanguage } = req.body;
+
+    if (!video) {
+      return res.status(404).json({ message: "Video not found" });
+    }
+
+    if (video.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    if (!learningLanguage) {
+      return res.status(400).json({ message: "learningLanguage is required" });
+    }
+
+    const languageChanged = video.learningLanguage !== learningLanguage;
+
+    video.learningLanguage = learningLanguage;
+
+    if (languageChanged) {
+      video.insightsStatus = "pending";
+      video.processingError = "";
+      video.transcript = "";
+      video.topics = [];
+      video.notes = [];
+      video.insightsSummary = "";
+      video.processedAt = undefined;
+    }
+
+    await video.save();
+
+    if (languageChanged) {
+      queueVideoInsights(video._id.toString());
+    }
+
+    res.json({
+      message: languageChanged
+        ? "Learning language updated and processing restarted"
+        : "Learning language already up to date",
+      video,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const deleteVideo = async (req, res) => {
   try {
     console.log("Delete API hit 🔥");

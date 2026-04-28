@@ -3,6 +3,10 @@ import fs from "fs";
 import path from "path";
 import Video from "../models/Video.js";
 import User from "../models/User.js";
+import {
+  isTranslationEnabled,
+  translateInsights,
+} from "./translationService.js";
 
 const DEFAULT_WHISPER_PYTHON =
   "C:\\Users\\ASUS\\anaconda3\\envs\\whisper-clean\\python.exe";
@@ -192,6 +196,32 @@ const buildFallbackInsights = ({ title, transcript = "", segments = [] }) => {
 const buildAbsolutePath = (videoUrl) =>
   path.join(process.cwd(), videoUrl.replace(/^\/+/, ""));
 
+const localizeInsights = async ({ transcript, insights, targetLanguage }) => {
+  if (!targetLanguage || targetLanguage === "English") {
+    return {
+      transcript,
+      notes: insights.notes,
+      topics: insights.topics,
+      summary: insights.summary,
+    };
+  }
+
+  if (!isTranslationEnabled()) {
+    throw new Error(
+      `Free translation is not ready for ${targetLanguage}. Install the Python translation package first.`
+    );
+  }
+
+  return translateInsights({
+    transcript,
+    notes: insights.notes,
+    topics: insights.topics,
+    summary: insights.summary,
+    targetLanguage,
+    sourceLanguage: "auto",
+  });
+};
+
 const transcribeWithWhisper = (filePath) =>
   new Promise((resolve, reject) => {
     const args = [WHISPER_SCRIPT_PATH, filePath, WHISPER_MODEL];
@@ -267,12 +297,17 @@ export const processVideoInsights = async (videoId) => {
           transcript: cleanedTranscript,
           segments: cleanedSegments,
         });
+        const localized = await localizeInsights({
+          transcript: cleanedTranscript,
+          insights,
+          targetLanguage,
+        });
 
         video.originalTranscript = transcript;
-        video.transcript = cleanedTranscript;
-        video.notes = insights.notes;
-        video.topics = insights.topics;
-        video.insightsSummary = insights.summary;
+        video.transcript = localized.transcript;
+        video.notes = localized.notes;
+        video.topics = localized.topics;
+        video.insightsSummary = localized.summary;
         video.insightsStatus = "completed";
         video.processingError = "";
         video.processedAt = new Date();
@@ -315,12 +350,17 @@ export const processVideoInsights = async (videoId) => {
       transcript: cleanedTranscript,
       segments: cleanedSegments,
     });
+    const localized = await localizeInsights({
+      transcript: cleanedTranscript,
+      insights,
+      targetLanguage,
+    });
 
     video.originalTranscript = transcript;
-    video.transcript = cleanedTranscript;
-    video.notes = insights.notes;
-    video.topics = insights.topics;
-    video.insightsSummary = insights.summary;
+    video.transcript = localized.transcript;
+    video.notes = localized.notes;
+    video.topics = localized.topics;
+    video.insightsSummary = localized.summary;
     video.insightsStatus = "completed";
     video.processingError = "";
     video.processedAt = new Date();

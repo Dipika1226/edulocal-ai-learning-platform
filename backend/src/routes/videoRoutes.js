@@ -59,6 +59,7 @@ import {
   getPublicVideos,
   myVideos,
   reprocessVideoInsights,
+  updateVideoLearningLanguage,
   uploadFile,
   uploadLink,
 } from "../controllers/videoController.js";
@@ -97,6 +98,7 @@ const upload = multer({
 router.post("/upload-file", protect, upload.single("video"), uploadFile);
 router.post("/upload-link", protect, uploadLink);
 router.post("/:id/process", protect, reprocessVideoInsights);
+router.patch("/:id/language", protect, updateVideoLearningLanguage);
 router.get("/my-videos", protect, myVideos);
 router.get("/:id", protect, getVideoById);
 router.delete("/:id", protect, deleteVideo);

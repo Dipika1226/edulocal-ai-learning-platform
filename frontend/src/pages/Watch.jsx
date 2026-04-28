@@ -15,6 +15,7 @@ export default function Watch() {
   const { id } = useParams();
   const location = useLocation();
   const playerRef = useRef(null);
+  const t = getText();
 
   const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
   const preferredLanguage = savedUser?.preferredLanguage || "English";
@@ -23,6 +24,7 @@ export default function Watch() {
   const [loading, setLoading] = useState(Boolean(id && !location.state?.video));
   const [error, setError] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState(preferredLanguage);
+  const [languageSaving, setLanguageSaving] = useState(false);
 
   // Dubbing UI only
   const [showDubbed, setShowDubbed] = useState(false);
@@ -52,6 +54,31 @@ export default function Watch() {
       if (!silent) {
         setLoading(false);
       }
+    }
+  };
+
+  const updateLearningLanguage = async (language) => {
+    if (!id || !video || language === video.learningLanguage) return;
+
+    try {
+      setLanguageSaving(true);
+      setError("");
+
+      const res = await apiRequest(`/videos/${id}/language`, {
+        method: "PATCH",
+        body: JSON.stringify({ learningLanguage: language }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update learning language");
+      }
+
+      setVideo(data.video);
+    } catch (err) {
+      setError(err.message || "Failed to update learning language");
+    } finally {
+      setLanguageSaving(false);
     }
   };
 
@@ -194,25 +221,16 @@ export default function Watch() {
             </button>
 
             <button
-              onClick={() => setShowDubbed(true)}
-              className={`px-4 py-2 rounded ${
-                showDubbed
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-300 text-black"
-              }`}
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded bg-gray-200 px-4 py-2 text-gray-500 opacity-70"
             >
-              Dubbed
+              Dubbed Soon
             </button>
           </div>
 
           <div className="overflow-hidden rounded-[26px] bg-slate-950 shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
-            {showDubbed ? (
-              <video
-                src="http://localhost:5000/uploads/demo.mp4"
-                controls
-                className="h-[280px] w-full bg-black object-contain sm:h-[390px] xl:h-[500px]"
-              />
-            ) : video.videoType === "link" && embedUrl ? (
+            {video.videoType === "link" && embedUrl ? (
               <iframe
                 src={embedUrl}
                 title={video.title || "video"}
@@ -270,18 +288,27 @@ export default function Watch() {
                     <button
                       key={lang}
                       type="button"
-                      onClick={() => setSelectedLanguage(lang)}
+                      onClick={() => {
+                        setSelectedLanguage(lang);
+                        updateLearningLanguage(lang);
+                      }}
+                      disabled={languageSaving}
                       className={`rounded-full px-4 py-2 text-[13px] font-medium transition ${
                         isActive
                           ? "bg-purple-600 text-white shadow-sm"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
+                      } ${languageSaving ? "opacity-70" : ""}`}
                     >
                       {lang}
                     </button>
                   );
                 })}
               </div>
+              <p className="mt-3 text-[12px] leading-5 text-slate-500">
+                {languageSaving
+                  ? `Updating learning language to ${selectedLanguage} and restarting AI processing...`
+                  : `Transcript, notes, topic summaries, and lesson summary will be generated in the selected language.`}
+              </p>
             </div>
           </div>
 
