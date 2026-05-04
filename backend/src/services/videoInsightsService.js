@@ -188,14 +188,25 @@ const localizeInsights = async ({ transcript, insights, targetLanguage }) => {
     );
   }
 
-  return translateInsights({
-    transcript,
-    notes: insights.notes,
-    topics: insights.topics,
-    summary: insights.summary,
-    targetLanguage,
-    sourceLanguage: "auto",
-  });
+  try {
+    return translateInsights({
+      transcript,
+      notes: insights.notes,
+      topics: insights.topics,
+      summary: insights.summary,
+      targetLanguage,
+      sourceLanguage: "auto",
+    });
+  } catch (error) {
+    console.log(`Translation fallback used for ${targetLanguage}:`, error.message);
+
+    return {
+      transcript,
+      notes: insights.notes,
+      topics: insights.topics,
+      summary: insights.summary,
+    };
+  }
 };
 
 const downloadAudioFromUrl = (url) =>
