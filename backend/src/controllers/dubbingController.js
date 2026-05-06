@@ -1,9 +1,10 @@
+import { createDubbedMedia } from "../services/dubbingService.js";
 import { exec } from "child_process";
 import fs from "fs";
 import path from "path";
 import Dubbing from "../models/Dubbing.js";
 import Video from "../models/Video.js";
-
+import { translateText } from "../services/translationService.js";
 // 🔹 Run any terminal command
 const runCommand = (command) => {
   return new Promise((resolve, reject) => {
@@ -21,28 +22,25 @@ const runCommand = (command) => {
 // 🔹 Whisper function
 const runWhisper = (videoPath) => {
   return new Promise((resolve, reject) => {
-      const pythonPath = process.env.WHISPER_PYTHON_PATH;
-const scriptPath = process.env.WHISPER_SCRIPT_PATH;
+    const pythonPath = process.env.WHISPER_PYTHON_PATH;
+    const scriptPath = process.env.WHISPER_SCRIPT_PATH;
 
-exec(
-  `"${pythonPath}" "${scriptPath}" "${videoPath}"`,
-  (error, stdout, stderr) => {
-        if (error) {
-          console.error("❌ Whisper Error:", error);
-          console.error("❌ Whisper stderr:", stderr);
-          return reject(error);
-        }
-
-        try {
-          const result = JSON.parse(stdout);
-          resolve(result);
-        } catch (err) {
-          console.error("❌ JSON Parse Error:", err);
-          console.error("❌ Whisper stdout:", stdout);
-          reject(err);
-        }
+    exec(`"${pythonPath}" "${scriptPath}" "${videoPath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error("❌ Whisper Error:", error);
+        console.error("❌ Whisper stderr:", stderr);
+        return reject(error);
       }
-    );
+
+      try {
+        const result = JSON.parse(stdout);
+        resolve(result);
+      } catch (err) {
+        console.error("❌ JSON Parse Error:", err);
+        console.error("❌ Whisper stdout:", stdout);
+        reject(err);
+      }
+    });
   });
 };
 
@@ -56,10 +54,7 @@ const downloadLinkVideo = async (url) => {
 
   const outputTemplate = path.join(downloadsDir, "%(id)s.%(ext)s");
 
-  // yt-dlp via python module
-  await runCommand(
-    `python -m yt_dlp -f mp4 -o "${outputTemplate}" "${url}"`
-  );
+  await runCommand(`python -m yt_dlp -f mp4 -o "${outputTemplate}" "${url}"`);
 
   const files = fs
     .readdirSync(downloadsDir)
@@ -117,7 +112,6 @@ export const createDub = async (req, res) => {
 
     console.log("✅ Dubbing created:", dubbing._id);
 
-    // 🔥 Whisper Integration for both file and link
     try {
       const video = await Video.findById(videoId);
 
@@ -128,7 +122,7 @@ export const createDub = async (req, res) => {
       let videoPath = "";
 
       if (video.videoType === "file") {
-        videoPath = `.${video.videoUrl}`; // ./uploads/filename.mp4
+        videoPath = `.${video.videoUrl}`;
       } else if (video.videoType === "link") {
         console.log("🔗 Downloading link video:", video.videoUrl);
         videoPath = await downloadLinkVideo(video.videoUrl);
@@ -141,13 +135,45 @@ export const createDub = async (req, res) => {
       const transcriptResult = await runWhisper(videoPath);
 
       dubbing.transcript = transcriptResult.text || "";
-      dubbing.processingStatus = "transcribed";
+
+if (!dubbing.transcript.trim()) {
+  throw new Error("Transcript is empty");
+}
+
+if (dubLanguage !== "English") {
+  console.log(`🌐 Translating transcript to ${dubLanguage}...`);
+
+  dubbing.translatedText = await translateText({
+    text: dubbing.transcript,
+    targetLanguage: dubLanguage,
+    sourceLanguage: "auto",
+  });
+} else {
+  dubbing.translatedText = dubbing.transcript;
+}
+
+console.log("🎙️ Creating dubbed audio and video...");
+
+const textForDubbing =
+  dubLanguage === "English" ? dubbing.transcript : dubbing.translatedText;
+
+const dubbedMedia = await createDubbedMedia({
+  videoPath,
+  text: textForDubbing,
+  language: dubLanguage,
+});
+      dubbing.dubbedAudioUrl = dubbedMedia.dubbedAudioUrl;
+      dubbing.dubbedVideoUrl = dubbedMedia.dubbedVideoUrl;
+      dubbing.processingStatus = "completed";
 
       await dubbing.save();
 
-      console.log("✅ Transcript saved");
+      console.log("✅ Transcript and dubbed video saved");
     } catch (err) {
-      console.log("❌ Whisper/link processing failed but app continues:", err.message);
+      console.log("❌ Whisper/dubbing processing failed:", err.message);
+
+      dubbing.processingStatus = "failed";
+      await dubbing.save();
     }
 
     res.status(201).json({
@@ -164,12 +190,12 @@ export const createDub = async (req, res) => {
 export const getUserDubForVideo = async (req, res) => {
   try {
     const { videoId } = req.params;
-
+    const { dubLanguage } = req.query;
     const dubbing = await Dubbing.findOne({
-      videoId,
-      userId: req.user.id,
-    });
-
+  videoId,
+  userId: req.user.id,
+  ...(dubLanguage ? { dubLanguage } : {}),
+}).sort({ createdAt: -1 });
     if (!dubbing) {
       return res.json({ dubbing: null });
     }
@@ -194,9 +220,9 @@ export const completeDubbing = async (req, res) => {
     } = req.body;
 
     const dubbing = await Dubbing.findOne({
-      videoId,
-      userId: req.user.id,
-    });
+  videoId,
+  userId: req.user.id,
+}).sort({ createdAt: -1 });
 
     if (!dubbing) {
       return res.status(404).json({ message: "Dubbing not found" });

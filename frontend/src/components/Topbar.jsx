@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LogOut, Menu, Settings, SquareLibrary } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Settings, SquareLibrary } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -86,12 +86,6 @@ export default function Topbar({ onToggleSidebar }) {
         <div className="hidden sm:block text-sm text-slate-600">
           🌐 {user?.preferredLanguage || "Not set"}
         </div>
-
-        <button className="relative p-1.5 text-slate-600 hover:bg-slate-100 rounded-full">
-          <Bell size={18} />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-        </button>
-
         <div ref={profileMenuRef} className="relative">
           <button
             type="button"
@@ -103,7 +97,7 @@ export default function Topbar({ onToggleSidebar }) {
             </span>
 
             <span className="hidden sm:inline text-sm text-slate-600">
-              {user?.username || "User"}
+              {user?.username || user?.name || "User"}
             </span>
 
             <ChevronDown
@@ -115,7 +109,9 @@ export default function Topbar({ onToggleSidebar }) {
           {isProfileOpen && (
             <div className="absolute right-0 mt-3 w-56 rounded-xl border bg-white shadow-lg z-20">
               <div className="px-4 py-3 border-b">
-                <p className="text-sm font-semibold">{user?.username}</p>
+                <p className="text-sm font-semibold">
+                    {user?.username || user?.name || "User"}
+                </p>
                 <p className="text-xs text-gray-500">{user?.email}</p>
                 <p className="text-xs text-violet-600 mt-1">
                   Language: {user?.preferredLanguage || "Not set"}

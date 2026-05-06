@@ -8,7 +8,7 @@ import {
   getYoutubeEmbedUrl,
 } from "../utils/videoLearning";
 
-const languageOptions = ["English", "Hindi", "Bengali", "Telugu", "Marathi"];
+const languageOptions = ["English", "Hindi", "Marathi"];
 
 export default function Watch() {
   const navigate = useNavigate();
@@ -26,6 +26,7 @@ export default function Watch() {
   const [selectedLanguage, setSelectedLanguage] = useState(preferredLanguage);
   const [languageSaving, setLanguageSaving] = useState(false);
   const [showDubbed, setShowDubbed] = useState(false);
+  const [dubbing, setDubbing] = useState(null);
   const [currentEmbedUrl, setCurrentEmbedUrl] = useState("");
 
   const fetchVideo = async ({ silent = false } = {}) => {
@@ -118,7 +119,24 @@ export default function Watch() {
 
     return () => window.clearInterval(intervalId);
   }, [id, video?.insightsStatus]);
+  useEffect(() => {
+  console.log("🔥 dubbing useEffect triggered", id);
 
+  const fetchDubbing = async () => {
+    try {
+      const res = await apiRequest(`/dubbing/${id}`);
+      const data = await res.json();
+
+      console.log("🎯 dubbing data:", data);
+
+      setDubbing(data.dubbing);
+    } catch (err) {
+      console.log("Dubbing fetch error:", err);
+    }
+  };
+
+  if (id) fetchDubbing();
+}, [id]);
   const jumpToTopic = (timestamp) => {
     const time = Number(timestamp) || 0;
 
@@ -149,11 +167,34 @@ export default function Watch() {
     videoEl.play().catch(() => {});
   };
 
-  const embedUrl = useMemo(
-    () => getYoutubeEmbedUrl(video?.videoUrl || video?.link),
-    [video]
-  );
+  const embedUrl = useMemo(() => {
+  const url = video?.videoUrl || video?.link || "";
+
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.hostname.includes("youtube.com")) {
+      const videoId = parsed.searchParams.get("v");
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+    }
+
+    if (parsed.hostname.includes("youtu.be")) {
+      const videoId = parsed.pathname.replace("/", "");
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}, [video]);
   const source = useMemo(() => getVideoSource(video), [video]);
+  const isLinkVideo =
+  video?.videoType === "link" ||
+  video?.videoUrl?.startsWith("http") ||
+  video?.link?.startsWith("http");
   const topics = video?.topics || [];
   const notes = video?.notes || [];
   const transcript = video?.transcript || "";
@@ -233,32 +274,75 @@ export default function Watch() {
             >
               Original
             </button>
-
             <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded bg-gray-200 px-4 py-2 text-gray-500 opacity-70"
-            >
-              Dubbed Soon
-            </button>
+    onClick={async () => {
+      const token = localStorage.getItem("token");
+
+      await fetch("http://localhost:5000/api/dubbing/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          videoId: id,
+          dubLanguage: selectedLanguage,
+          learningLanguage: selectedLanguage,
+        }),
+      });
+
+      alert("Dubbing started... wait 5 sec then click Dubbed Video");
+    }}
+    className="px-4 py-2 rounded bg-green-600 text-white"
+  >
+    Generate Dub
+  </button>
+  <button
+  onClick={async () => {
+    const res = await apiRequest(`/dubbing/${id}`);
+    const data = await res.json();
+
+    console.log("🔥 latest dubbing:", data);
+
+    setDubbing(data.dubbing);
+    setShowDubbed(true);
+  }}
+  className={`px-4 py-2 rounded ${
+    showDubbed
+      ? "bg-purple-600 text-white"
+      : "bg-gray-300 text-black"
+  }`}
+>
+  Dubbed Video
+</button>
+
           </div>
 
           <div className="overflow-hidden rounded-[26px] bg-slate-950 shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
-            {video.videoType === "link" && embedUrl ? (
-              <iframe
-                src={currentEmbedUrl || embedUrl}
-                title={video.title || "video"}
-                allowFullScreen
-                className="h-[280px] w-full sm:h-[390px] xl:h-[500px]"
-              />
-            ) : (
-              <video
-                ref={playerRef}
-                src={source}
-                controls
-                className="h-[280px] w-full bg-black object-contain sm:h-[390px] xl:h-[500px]"
-              />
-            )}
+           {showDubbed && dubbing?.dubbedVideoUrl ? (
+  <video
+    controls
+    src={`http://localhost:5000${dubbing.dubbedVideoUrl}`}
+    className="h-[280px] w-full bg-black object-contain sm:h-[390px] xl:h-[500px]"
+  />
+) : embedUrl ? (
+  <iframe
+    src={currentEmbedUrl || embedUrl}
+    title={video.title || "video"}
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerPolicy="strict-origin-when-cross-origin"
+    allowFullScreen
+    className="h-[280px] w-full sm:h-[390px] xl:h-[500px]"
+  />
+) : (
+  <video
+    ref={playerRef}
+    src={source}
+    controls
+    className="h-[280px] w-full bg-black object-contain sm:h-[390px] xl:h-[500px]"
+  />
+)}
           </div>
 
           <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">

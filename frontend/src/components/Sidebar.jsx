@@ -21,21 +21,6 @@ export default function Sidebar({ isCollapsed = false }) {
       active: true,
     },
     {
-      label: t.videoLearning,
-      to: "/dashboard",
-      icon: BookOpen,
-    },
-    {
-      label: t.quizzes,
-      to: "/dashboard",
-      icon: Puzzle,
-    },
-    {
-      label: t.myNotes,
-      to: "/dashboard",
-      icon: NotebookPen,
-    },
-    {
       label: t.uploadVideo,
       to: "/dashboard/upload",
       icon: CirclePlus,

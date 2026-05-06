@@ -1,4 +1,5 @@
 import { execFile } from "child_process";
+import ffmpegPath from "ffmpeg-static";
 import fs from "fs";
 import path from "path";
 import Video from "../models/Video.js";
@@ -172,6 +173,13 @@ const buildFallbackInsights = ({ title, transcript = "", segments = [] }) => {
 const buildAbsolutePath = (videoUrl) =>
   path.join(process.cwd(), videoUrl.replace(/^\/+/, ""));
 
+const getYtDlpConfig = () => {
+  const command = process.env.YT_DLP_PATH || "python";
+  const baseArgs = process.env.YT_DLP_PATH ? [] : ["-m", "yt_dlp"];
+
+  return { command, baseArgs };
+};
+
 const localizeInsights = async ({ transcript, insights, targetLanguage }) => {
   if (!targetLanguage || targetLanguage === "English") {
     return {
@@ -224,14 +232,18 @@ const downloadAudioFromUrl = (url) =>
       if (v) cleanUrl = `https://www.youtube.com/watch?v=${v}`;
     } catch {}
 
+    const { command, baseArgs } = getYtDlpConfig();
+
     execFile(
-      "yt-dlp",
+      command,
       [
+        ...baseArgs,
         "--js-runtimes",
         "node",
         "--extract-audio",
         "--audio-format",
         "mp3",
+        ...(ffmpegPath ? ["--ffmpeg-location", ffmpegPath] : []),
         "--output",
         outputTemplate,
         "--no-playlist",
@@ -241,7 +253,11 @@ const downloadAudioFromUrl = (url) =>
       (error, stdout, stderr) => {
         if (error) {
           console.log("yt-dlp error:", stderr || error.message);
-          return reject(new Error("yt-dlp failed"));
+          return reject(
+            new Error(
+              "yt-dlp failed. Install it with: python -m pip install -U yt-dlp"
+            )
+          );
         }
 
         if (!fs.existsSync(outputPath)) {
@@ -293,7 +309,7 @@ export const processVideoInsights = async (videoId) => {
 
   video.insightsStatus = "processing";
   video.processingError = "";
-  await video.save();
+  await Video.findByIdAndUpdate(video._id, video);
 
   try {
     const user = await User.findById(video.uploadedBy).select("preferredLanguage");
@@ -335,7 +351,7 @@ export const processVideoInsights = async (videoId) => {
         video.insightsStatus = "completed";
         video.processingError = "";
         video.processedAt = new Date();
-        await video.save();
+        await Video.findByIdAndUpdate(video._id, video);
       } finally {
         if (audioPath && fs.existsSync(audioPath)) {
           fs.unlinkSync(audioPath);
@@ -387,13 +403,13 @@ export const processVideoInsights = async (videoId) => {
     video.insightsStatus = "completed";
     video.processingError = "";
     video.processedAt = new Date();
-    await video.save();
+    await Video.findByIdAndUpdate(video._id, video);
   } catch (err) {
     console.log("Processing error:", err.message);
     video.insightsStatus = "failed";
     video.processingError = err.message;
     video.processedAt = new Date();
-    await video.save();
+    await Video.findByIdAndUpdate(video._id, video);
   }
 };
 

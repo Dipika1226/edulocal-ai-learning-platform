@@ -14,7 +14,7 @@ const dubbingSchema = new mongoose.Schema(
     },
     dubLanguage: {
       type: String,
-      enum: ["Hindi", "English"],
+      enum: ["Hindi", "English", "Marathi"],
       required: true,
     },
     transcript: {

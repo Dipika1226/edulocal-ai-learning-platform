@@ -13,7 +13,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 // static uploads
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use("/api/dubbings", dubbingRoutes);
+app.use("/api/dubbing", dubbingRoutes);
 app.get("/", (req, res) => {
   res.send("EduLocal Backend Running");
 });
